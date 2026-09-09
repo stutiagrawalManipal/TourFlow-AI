@@ -1,19 +1,12 @@
 import React, { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import {
   MapPin,
-  Clock,
-  Users,
-  Compass,
   Sparkles,
   ArrowLeft,
-  Calendar,
-  IndianRupee,
-  ShieldCheck,
   CheckCircle2,
   Ticket,
-  ChevronRight,
-  Info
+  Star
 } from 'lucide-react';
 import { DESTINATIONS } from '../data/destinations';
 import CrowdBadge from '../components/CrowdBadge';
@@ -21,7 +14,6 @@ import QueueModal from '../components/QueueModal';
 
 export default function DestinationDetails() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const destination = DESTINATIONS.find((d) => d.id === id);
@@ -29,16 +21,16 @@ export default function DestinationDetails() {
   if (!destination) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-        <h2 className="text-2xl font-bold text-white mb-2">Destination Not Found</h2>
-        <p className="text-sm text-slate-400 mb-6">
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Destination not found</h2>
+        <p className="text-sm text-slate-500 mb-6">
           The requested tourist destination ID "{id}" could not be located.
         </p>
         <Link
           to="/destinations"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-500 text-slate-950 font-bold rounded-xl text-xs font-mono uppercase"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-sky-600 text-white font-bold rounded-lg text-sm shadow-sm"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to Destinations</span>
+          <span>Back to destinations</span>
         </Link>
       </div>
     );
@@ -46,120 +38,117 @@ export default function DestinationDetails() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      {/* Top Back Navigation Bar */}
-      <div className="flex items-center justify-between">
+      {/* Back Link */}
+      <div>
         <Link
           to="/destinations"
-          className="inline-flex items-center gap-2 text-xs font-mono text-slate-400 hover:text-cyan-400 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>BACK TO ALL SITES</span>
+          <span>Back to destinations</span>
         </Link>
-
-        <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 text-[11px] font-mono text-slate-400 px-3 py-1 rounded-lg">
-          <Compass className="w-3.5 h-3.5 text-cyan-400" />
-          <span>COORDINATES: {destination.coordinates}</span>
-        </div>
       </div>
 
       {/* Header Info */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800/80 pb-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-6">
         <div>
-          <div className="flex flex-wrap items-center gap-2.5 mb-2">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
             <CrowdBadge level={destination.crowdLevel} size="md" />
-            <span className="text-xs font-mono px-2.5 py-0.5 rounded bg-slate-800 text-cyan-300 border border-slate-700">
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
               {destination.category}
             </span>
-            <span className="text-xs font-mono text-slate-400">
-              Rating: {destination.rating} ★ ({destination.reviewsCount} reviews)
-            </span>
+            <div className="flex items-center gap-1 text-xs text-amber-600">
+              <Star className="w-3.5 h-3.5 fill-amber-500" />
+              <span className="font-bold text-slate-900">{destination.rating}</span>
+              <span className="text-slate-500">({destination.reviewsCount} reviews)</span>
+            </div>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white font-sans tracking-tight">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-900">
             {destination.name}
           </h1>
 
-          <p className="text-sm text-slate-400 flex items-center gap-1.5 mt-1.5">
-            <MapPin className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+          <p className="text-sm text-slate-500 flex items-center gap-1.5 mt-1.5">
+            <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0" />
             <span>{destination.location}</span>
           </p>
         </div>
 
-        {/* Action Buttons in Header */}
+        {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-slate-950 font-bold px-6 py-3 rounded-xl text-xs font-mono uppercase tracking-wider transition-all shadow-lg shadow-cyan-950"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors shadow-sm"
           >
             <Ticket className="w-4 h-4" />
-            <span>Join Queue</span>
+            <span>Join digital queue</span>
           </button>
 
           <Link
             to={`/ai-guide?dest=${destination.id}`}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 px-5 py-3 rounded-xl text-xs font-mono uppercase tracking-wider font-bold transition-all"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors shadow-sm"
           >
-            <Sparkles className="w-4 h-4 text-cyan-400" />
-            <span>Use AI Guide</span>
+            <Sparkles className="w-4 h-4 text-sky-600" />
+            <span>Ask AI Guide</span>
           </Link>
         </div>
       </div>
 
-      {/* Main Grid: Details + Dedicated Queue Intelligence Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* Main Grid: Details + Queue Intelligence Card */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Visual & Historical / Cultural Content */}
         <div className="lg:col-span-8 space-y-8">
-          {/* Large Destination Visual */}
-          <div className="relative aspect-[16/9] rounded-3xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950">
+          {/* Main Visual */}
+          <div className="relative aspect-[16/9] rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 shadow-sm">
             <img
               src={destination.imageUrl}
               alt={destination.name}
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
-            <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs font-mono text-slate-300">
-              <span className="bg-slate-950/80 backdrop-blur-md px-3 py-1 rounded-lg border border-slate-700">
-                Recommended Duration: {destination.recommendedVisitDuration}
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent" />
+            <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs text-white font-medium">
+              <span className="bg-white/95 text-slate-900 backdrop-blur-sm px-3 py-1.5 rounded-lg shadow-sm border border-white/60">
+                Recommended visit: {destination.recommendedVisitDuration}
               </span>
-              <span className="bg-slate-950/80 backdrop-blur-md px-3 py-1 rounded-lg border border-slate-700 hidden sm:inline">
-                Entry Fee: {destination.entryFee}
+              <span className="bg-white/95 text-slate-900 backdrop-blur-sm px-3 py-1.5 rounded-lg shadow-sm border border-white/60 hidden sm:inline">
+                Entry: {destination.entryFee}
               </span>
             </div>
           </div>
 
-          {/* Description & Historical / Cultural Info */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 backdrop-blur-md">
+          {/* Description & Cultural Info */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 space-y-6 shadow-card">
             <div>
-              <h3 className="text-xl font-bold text-white mb-2 font-sans">
-                Overview & Architecture
+              <h3 className="text-lg font-bold text-slate-900 mb-2">
+                About this landmark
               </h3>
-              <p className="text-sm text-slate-300 leading-relaxed">
+              <p className="text-sm text-slate-700 leading-relaxed">
                 {destination.fullDescription}
               </p>
             </div>
 
-            <div className="pt-4 border-t border-slate-800">
-              <h3 className="text-xl font-bold text-white mb-2 font-sans">
-                Historical Significance
+            <div className="pt-4 border-t border-slate-100">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">
+                Historical background
               </h3>
-              <p className="text-sm text-slate-300 leading-relaxed">
+              <p className="text-sm text-slate-700 leading-relaxed">
                 {destination.historicalInfo}
               </p>
             </div>
 
-            {/* Highlights List */}
+            {/* Highlights */}
             {destination.highlights && (
-              <div className="pt-4 border-t border-slate-800">
-                <h3 className="text-base font-bold text-white mb-3 font-sans">
-                  Key Landmark Highlights
+              <div className="pt-4 border-t border-slate-100">
+                <h3 className="text-base font-bold text-slate-900 mb-3">
+                  Highlights & key areas
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {destination.highlights.map((item, idx) => (
                     <div
                       key={idx}
-                      className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs text-slate-300"
+                      className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800"
                     >
-                      <CheckCircle2 className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
+                      <CheckCircle2 className="w-4 h-4 text-sky-600 flex-shrink-0 mt-0.5" />
                       <span>{item}</span>
                     </div>
                   ))}
@@ -167,130 +156,109 @@ export default function DestinationDetails() {
               </div>
             )}
 
-            {/* Visiting Logistics Quick Grid */}
-            <div className="pt-4 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800">
-                <span className="text-slate-500 font-mono text-[11px] block uppercase">Visiting Hours</span>
-                <span className="text-slate-200 font-medium block mt-1">{destination.visitingHours}</span>
+            {/* Logistics Grid */}
+            <div className="pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="text-slate-500 font-semibold block text-[11px]">Visiting Hours</span>
+                <span className="text-slate-900 font-bold block mt-1">{destination.visitingHours}</span>
               </div>
-              <div className="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800">
-                <span className="text-slate-500 font-mono text-[11px] block uppercase">Best Time to Visit</span>
-                <span className="text-amber-300 font-medium block mt-1">{destination.bestTime}</span>
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="text-slate-500 font-semibold block text-[11px]">Best Time to Visit</span>
+                <span className="text-amber-800 font-bold block mt-1">{destination.bestTime}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right Column: Dedicated Queue Intelligence Panel */}
+        {/* Right Column: Queue Intelligence Panel */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="bg-slate-900 border border-cyan-500/30 rounded-3xl p-6 shadow-2xl backdrop-blur-xl relative overflow-hidden sticky top-24">
-            {/* Top scanning accent */}
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-5">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
-                <h3 className="text-sm font-mono uppercase font-bold tracking-wider text-white">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 sticky top-24 space-y-6 shadow-card">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
                   Queue Intelligence
                 </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Real-time turnstile monitoring
+                </p>
               </div>
-              <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950 border border-cyan-500/30 px-2 py-0.5 rounded">
-                LIVE SENSORS
-              </span>
+              <CrowdBadge level={destination.crowdLevel} size="sm" />
             </div>
 
-            {/* Queue Metrics Specified in Prompt */}
-            <div className="space-y-4 mb-6">
-              {/* Current Queue */}
-              <div className="flex items-center justify-between p-3.5 bg-slate-950 rounded-2xl border border-slate-800">
-                <span className="text-xs font-mono uppercase text-slate-400">Current Queue:</span>
-                <span className="text-2xl font-mono font-black text-amber-400">
+            {/* Metrics */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="text-xs text-slate-600 font-medium">Current queue:</span>
+                <span className="text-xl font-bold font-mono text-amber-700">
                   #{destination.currentTicketNumber || 27}
                 </span>
               </div>
 
-              {/* People Waiting */}
-              <div className="flex items-center justify-between p-3.5 bg-slate-950 rounded-2xl border border-slate-800">
-                <span className="text-xs font-mono uppercase text-slate-400">People Waiting:</span>
-                <span className="text-lg font-mono font-bold text-cyan-300">
-                  {destination.currentQueue}
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="text-xs text-slate-600 font-medium">People waiting:</span>
+                <span className="text-sm font-bold text-slate-900">
+                  {destination.currentQueue} visitors
                 </span>
               </div>
 
-              {/* Estimated Wait */}
-              <div className="flex items-center justify-between p-3.5 bg-slate-950 rounded-2xl border border-slate-800">
-                <span className="text-xs font-mono uppercase text-slate-400">Estimated Wait:</span>
-                <span className="text-lg font-mono font-bold text-emerald-400">
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="text-xs text-slate-600 font-medium">Estimated wait:</span>
+                <span className="text-sm font-bold text-emerald-700">
                   {destination.estimatedWait}
                 </span>
               </div>
 
-              {/* Queue Capacity */}
-              <div className="flex items-center justify-between p-3.5 bg-slate-950 rounded-2xl border border-slate-800">
-                <span className="text-xs font-mono uppercase text-slate-400">Queue Capacity:</span>
-                <span className="text-lg font-mono font-bold text-white">
-                  {destination.queueCapacity}
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <span className="text-xs text-slate-600 font-medium">Queue capacity:</span>
+                <span className="text-sm font-bold text-slate-800">
+                  {destination.queueCapacity} slots
                 </span>
               </div>
             </div>
 
-            {/* Visual Queue Progress Bar */}
-            <div className="space-y-2 mb-6 p-4 bg-slate-950/70 rounded-2xl border border-slate-800">
-              <div className="flex justify-between text-xs font-mono">
-                <span className="text-slate-400">Saturation Index</span>
-                <span className="text-cyan-300 font-bold">{destination.crowdPercent}%</span>
+            {/* Saturation progress bar */}
+            <div className="space-y-2 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+              <div className="flex justify-between text-xs text-slate-700 font-medium">
+                <span>Capacity Saturation</span>
+                <span className="font-bold text-slate-900">{destination.crowdPercent}%</span>
               </div>
-              <div className="w-full bg-slate-900 rounded-full h-3 overflow-hidden p-0.5 border border-slate-800">
+              <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    destination.crowdPercent > 70
-                      ? 'bg-gradient-to-r from-cyan-400 via-amber-400 to-rose-500'
-                      : 'bg-gradient-to-r from-cyan-400 to-emerald-400'
+                  className={`h-full rounded-full ${
+                    destination.crowdPercent > 70 ? 'bg-amber-500' : 'bg-sky-600'
                   }`}
                   style={{ width: `${destination.crowdPercent}%` }}
                 />
               </div>
-              <div className="flex justify-between text-[10px] font-mono text-slate-500">
-                <span>0 slots</span>
-                <span>Max: {destination.queueCapacity}</span>
-              </div>
             </div>
 
-            {/* Visitor count today */}
-            <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-800/80 mb-6 flex items-center justify-between text-xs font-mono">
-              <span className="text-slate-400">Today's Visitors:</span>
-              <span className="text-slate-200 font-bold">{destination.visitorCountToday}</span>
-            </div>
-
-            {/* Main Action Buttons */}
-            <div className="space-y-3">
+            {/* Action Buttons */}
+            <div className="space-y-2.5 pt-2">
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-slate-950 font-black rounded-xl text-xs font-mono uppercase tracking-wider transition-all shadow-lg shadow-cyan-950 flex items-center justify-center gap-2"
+                className="w-full py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl text-sm transition-colors shadow-sm flex items-center justify-center gap-2"
               >
                 <Ticket className="w-4 h-4" />
-                <span>Join Digital Queue</span>
+                <span>Join queue</span>
               </button>
 
               <Link
                 to={`/ai-guide?dest=${destination.id}`}
-                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 rounded-xl text-xs font-mono uppercase tracking-wider font-bold transition-all flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
               >
-                <Sparkles className="w-4 h-4 text-cyan-400" />
-                <span>Ask AI Guide About This Site</span>
+                <Sparkles className="w-3.5 h-3.5 text-sky-600" />
+                <span>Ask AI Guide about this site</span>
               </Link>
             </div>
 
-            {/* Security Notice */}
-            <div className="mt-4 text-center">
-              <span className="text-[10px] font-mono text-slate-500 flex items-center justify-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-cyan-400" />
-                Strict max 4 visitors per pass enforced
-              </span>
-            </div>
+            <p className="text-[11px] text-slate-500 text-center">
+              Maximum 4 visitors per pass · Free cancellation anytime
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Queue Modal for this destination */}
+      {/* Queue Modal */}
       <QueueModal
         destination={destination}
         isOpen={isModalOpen}

@@ -2,7 +2,7 @@ import React from 'react';
 
 /**
  * SectionHeader component
- * Clean command center title with uppercase eyebrow, primary heading, and optional action.
+ * Clean section title with category eyebrow, dark slate heading, and action link.
  */
 export default function SectionHeader({
   eyebrow,
@@ -17,18 +17,15 @@ export default function SectionHeader({
     <div className={`flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 ${className}`}>
       <div>
         {eyebrow && (
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-            <span className="text-[11px] font-mono tracking-widest uppercase text-cyan-400 font-semibold">
-              {eyebrow}
-            </span>
-          </div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-sky-600 mb-1">
+            {eyebrow}
+          </p>
         )}
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white font-sans">
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
           {title}
         </h2>
         {subtitle && (
-          <p className="text-sm text-slate-400 mt-1 max-w-2xl">
+          <p className="text-sm text-slate-600 mt-1 max-w-2xl">
             {subtitle}
           </p>
         )}
@@ -39,7 +36,7 @@ export default function SectionHeader({
           {actionHref ? (
             <a
               href={actionHref}
-              className="inline-flex items-center gap-1.5 text-xs font-mono tracking-wider uppercase text-cyan-400 hover:text-cyan-300 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-600 hover:text-sky-700 transition-colors"
             >
               <span>{actionText}</span>
               <span>→</span>
@@ -47,7 +44,7 @@ export default function SectionHeader({
           ) : (
             <button
               onClick={onActionClick}
-              className="inline-flex items-center gap-1.5 text-xs font-mono tracking-wider uppercase text-cyan-400 hover:text-cyan-300 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-600 hover:text-sky-700 transition-colors"
             >
               <span>{actionText}</span>
               <span>→</span>

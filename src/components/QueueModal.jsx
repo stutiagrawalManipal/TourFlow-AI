@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Users, AlertCircle, CheckCircle, Clock, ArrowRight, ShieldCheck } from 'lucide-react';
+import { X, Users, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useQueue } from '../context/QueueContext';
 
 /**
  * QueueModal component
- * Enforces business rule: Maximum 4 visitors per booking.
+ * Enforces business rule: Maximum 4 visitors allowed per booking.
+ * Clean white/grey modal dialog.
  */
 export default function QueueModal({ destination, isOpen, onClose }) {
   const [visitorCount, setVisitorCount] = useState(1);
@@ -83,64 +84,61 @@ export default function QueueModal({ destination, isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
-      <div className="relative w-full max-w-lg bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden">
-        {/* Header telemetry accent */}
-        <div className="bg-slate-950 px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-            <span className="text-xs font-mono tracking-wider text-cyan-400 uppercase font-semibold">
-              Digital FIFO Queue Pass
-            </span>
-          </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fadeIn">
+      <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-modal overflow-hidden">
+        {/* Modal Header */}
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h3 className="text-base font-bold text-slate-900">
+            {confirmedBooking ? 'Pass Confirmed' : 'Join Digital Queue'}
+          </h3>
           <button
             onClick={handleCloseModal}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+            className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Modal Body */}
+        {/* Modal Content */}
         <div className="p-6">
           {!confirmedBooking ? (
             <div>
               {/* Destination Summary */}
-              <div className="flex items-center gap-3 p-3 bg-slate-950/60 rounded-xl border border-slate-800 mb-6">
+              <div className="flex items-center gap-3.5 p-3 rounded-xl bg-slate-50 border border-slate-200 mb-6">
                 <img
                   src={destination.imageUrl}
                   alt={destination.name}
-                  className="w-14 h-14 rounded-lg object-cover flex-shrink-0"
+                  className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
                 />
                 <div>
-                  <h4 className="text-base font-bold text-white">{destination.name}</h4>
-                  <p className="text-xs text-slate-400">{destination.location}</p>
-                  <p className="text-[11px] font-mono text-cyan-400 mt-1">
-                    Live Crowd: {destination.crowdLevel} • Est. Wait: {destination.estimatedWait}
+                  <h4 className="text-sm font-bold text-slate-900">{destination.name}</h4>
+                  <p className="text-xs text-slate-500">{destination.location}</p>
+                  <p className="text-xs text-sky-700 font-semibold mt-0.5">
+                    Est. wait: {destination.estimatedWait} · Crowd: {destination.crowdLevel.toLowerCase()}
                   </p>
                 </div>
               </div>
 
-              {/* Visitor Selection Question */}
+              {/* Group Size Selection */}
               <div className="mb-6">
-                <label className="block text-sm font-semibold text-slate-200 mb-2">
+                <label className="block text-sm font-semibold text-slate-900 mb-1">
                   How many visitors?
                 </label>
-                <p className="text-xs text-slate-400 mb-4">
-                  Select group size to reserve consecutive FIFO queue slots.
+                <p className="text-xs text-slate-500 mb-3">
+                  Each group receives one consecutive digital pass (1 to 4 visitors).
                 </p>
 
-                {/* Preset quick buttons 1-4 */}
-                <div className="grid grid-cols-4 gap-2 mb-4">
+                {/* Preset numbers 1 to 4 */}
+                <div className="grid grid-cols-4 gap-2 mb-3">
                   {[1, 2, 3, 4].map(num => (
                     <button
                       key={num}
                       type="button"
                       onClick={() => handleSelectCount(num)}
-                      className={`py-3 rounded-xl font-mono text-sm font-bold border transition-all ${
+                      className={`py-2.5 rounded-lg text-sm border transition-colors ${
                         visitorCount === num && !errorMessage
-                          ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400 shadow-sm shadow-cyan-500/20'
-                          : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-600'
+                          ? 'bg-sky-600 text-white border-sky-600 font-bold shadow-sm'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 font-medium'
                       }`}
                     >
                       {num} {num === 1 ? 'Person' : 'People'}
@@ -148,15 +146,15 @@ export default function QueueModal({ destination, isOpen, onClose }) {
                   ))}
                 </div>
 
-                {/* Counter with +/- buttons */}
-                <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
-                  <span className="text-xs text-slate-400 font-mono">Custom Input:</span>
-                  <div className="flex items-center gap-3">
+                {/* Stepper Input */}
+                <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                  <span className="text-xs text-slate-600 font-medium">Custom size:</span>
+                  <div className="flex items-center gap-2.5">
                     <button
                       type="button"
                       onClick={handleDecrement}
                       disabled={visitorCount <= 1}
-                      className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 flex items-center justify-center font-bold"
+                      className="w-7 h-7 rounded bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 text-slate-700 flex items-center justify-center font-bold text-sm shadow-sm"
                     >
                       -
                     </button>
@@ -166,12 +164,12 @@ export default function QueueModal({ destination, isOpen, onClose }) {
                       max="10"
                       value={visitorCount}
                       onChange={handleInputChange}
-                      className="w-12 bg-transparent text-center font-mono font-bold text-lg text-white border-b border-cyan-500/50 focus:outline-none"
+                      className="w-10 bg-transparent text-center font-bold text-sm text-slate-900 focus:outline-none"
                     />
                     <button
                       type="button"
                       onClick={handleIncrement}
-                      className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center font-bold"
+                      className="w-7 h-7 rounded bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-sm shadow-sm"
                     >
                       +
                     </button>
@@ -180,27 +178,24 @@ export default function QueueModal({ destination, isOpen, onClose }) {
 
                 {/* Validation Error Message */}
                 {errorMessage && (
-                  <div className="mt-3 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center gap-2.5 text-rose-300 text-xs animate-shake">
-                    <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
-                    <span className="font-medium">{errorMessage}</span>
+                  <div className="mt-3 p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-rose-700 text-xs font-medium">
+                    <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                    <span>{errorMessage}</span>
                   </div>
                 )}
               </div>
 
-              {/* Booking terms disclaimer */}
-              <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-800/80 mb-6 flex items-start gap-2.5 text-xs text-slate-400">
-                <ShieldCheck className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
-                <span>
-                  Digital FIFO passes are verified at security gates via smartphone QR scan. Free cancellation is permitted anytime before your number is called.
-                </span>
-              </div>
+              {/* Policy note */}
+              <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+                You will receive a verified pass with estimated entry call time. Free cancellation is permitted anytime.
+              </p>
 
-              {/* Modal Actions */}
+              {/* Actions */}
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="flex-1 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-medium transition-colors"
+                  className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors"
                 >
                   Cancel
                 </button>
@@ -208,47 +203,42 @@ export default function QueueModal({ destination, isOpen, onClose }) {
                   type="button"
                   onClick={handleConfirm}
                   disabled={visitorCount > 4}
-                  className="flex-1 py-2.5 px-4 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 disabled:opacity-50 text-slate-950 font-bold rounded-xl text-sm transition-all shadow-md shadow-cyan-950/40"
+                  className="flex-1 py-2.5 px-4 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white font-bold rounded-lg text-sm transition-colors shadow-sm"
                 >
-                  Confirm & Join Queue
+                  Confirm booking
                 </button>
               </div>
             </div>
           ) : (
-            /* Queue Confirmation State */
+            /* Confirmation State */
             <div className="text-center py-2">
-              <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-8 h-8" />
+              <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3 border border-emerald-200">
+                <CheckCircle2 className="w-6 h-6" />
               </div>
 
-              <h3 className="text-xl font-bold text-white mb-1">
-                Queue Pass Generated!
-              </h3>
-              <p className="text-xs text-slate-400 mb-6">
-                Your spot has been secured in the TourFlow digital FIFO queue.
+              <h4 className="text-lg font-bold text-slate-900 mb-1">
+                Queue Pass Reserved
+              </h4>
+              <p className="text-xs text-slate-500 mb-5">
+                Your spot has been secured. Show this pass at the gate turnstile.
               </p>
 
-              {/* Confirmation Details Card */}
-              <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 text-left mb-6 space-y-2.5 font-mono text-xs">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left mb-6 space-y-2 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Booking Reference:</span>
-                  <span className="text-cyan-400 font-bold">{confirmedBooking.id}</span>
+                  <span className="text-slate-500">Pass Number:</span>
+                  <span className="text-amber-700 font-bold font-mono text-sm">{confirmedBooking.queueNumber}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Queue Number:</span>
-                  <span className="text-amber-400 font-bold text-sm">{confirmedBooking.queueNumber}</span>
+                  <span className="text-slate-500">Booking Reference:</span>
+                  <span className="text-slate-800 font-bold font-mono">{confirmedBooking.id}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Visitors:</span>
-                  <span className="text-white">{confirmedBooking.visitorCount} {confirmedBooking.visitorCount === 1 ? 'Person' : 'People'}</span>
+                  <span className="text-slate-500">Visitors:</span>
+                  <span className="text-slate-900 font-semibold">{confirmedBooking.visitorCount} {confirmedBooking.visitorCount === 1 ? 'person' : 'people'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">People Ahead:</span>
-                  <span className="text-white">{confirmedBooking.positionAhead}</span>
-                </div>
-                <div className="flex justify-between border-t border-slate-800 pt-2">
-                  <span className="text-slate-400">Estimated Wait:</span>
-                  <span className="text-emerald-400 font-bold">{confirmedBooking.estimatedWait}</span>
+                <div className="flex justify-between border-t border-slate-200 pt-2">
+                  <span className="text-slate-500">Estimated Wait:</span>
+                  <span className="text-emerald-700 font-bold">{confirmedBooking.estimatedWait}</span>
                 </div>
               </div>
 
@@ -256,17 +246,17 @@ export default function QueueModal({ destination, isOpen, onClose }) {
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="flex-1 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-medium transition-colors"
+                  className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium transition-colors"
                 >
                   Close
                 </button>
                 <button
                   type="button"
                   onClick={handleGoToQueue}
-                  className="flex-1 py-2.5 px-4 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-colors"
+                  className="flex-1 py-2.5 px-4 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm"
                 >
-                  <span>View QR Pass</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <span>View Pass</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>

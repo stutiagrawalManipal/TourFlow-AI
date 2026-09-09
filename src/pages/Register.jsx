@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Compass, User, Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Compass, User, Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Register() {
@@ -51,7 +51,6 @@ export default function Register() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear field-specific error as user types
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -66,50 +65,47 @@ export default function Register() {
       register(formData.fullName, formData.email, formData.password);
       setLoading(false);
       navigate('/dashboard');
-    }, 400);
+    }, 300);
   };
 
   return (
-    <div className="min-h-[calc(100vh-12rem)] flex items-center justify-center px-4 py-12">
+    <div className="min-h-[calc(100vh-14rem)] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-8 shadow-2xl backdrop-blur-xl relative overflow-hidden">
-          {/* Top cyan gradient accent line */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
-
+        <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-8 shadow-card">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 mb-3">
-              <Compass className="w-8 h-8" />
+            <div className="inline-flex p-2.5 rounded-xl bg-sky-600/10 text-sky-400 mb-3">
+              <Compass className="w-6 h-6 stroke-[2.2]" />
             </div>
-            <h1 className="text-2xl font-bold text-white font-sans">
-              Create Tourist Account
+            <h1 className="text-2xl font-bold text-white">
+              Create an account
             </h1>
             <p className="text-xs text-slate-400 mt-1">
-              Join TourFlow AI for smart queue passes and crowd intelligence
+              Join TourFlow to manage digital passes and crowd updates
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Full Name */}
             <div>
-              <label className="block text-xs font-mono uppercase text-slate-400 mb-1.5">
-                Full Name
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                Full name
               </label>
               <div className="relative">
-                <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   name="fullName"
                   value={formData.fullName}
                   onChange={handleChange}
                   placeholder="e.g. Priya Sharma"
-                  className={`w-full bg-slate-950/80 border ${
-                    errors.fullName ? 'border-rose-500/80' : 'border-slate-700/80'
-                  } rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors`}
+                  className={`w-full bg-slate-900 border ${
+                    errors.fullName ? 'border-rose-500' : 'border-white/[0.1]'
+                  } rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-colors`}
                 />
               </div>
               {errors.fullName && (
-                <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1">
+                <p className="text-xs text-rose-400 mt-1 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
                   {errors.fullName}
                 </p>
@@ -118,24 +114,24 @@ export default function Register() {
 
             {/* Email Address */}
             <div>
-              <label className="block text-xs font-mono uppercase text-slate-400 mb-1.5">
-                Email Address
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                Email address
               </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="priya@example.com"
-                  className={`w-full bg-slate-950/80 border ${
-                    errors.email ? 'border-rose-500/80' : 'border-slate-700/80'
-                  } rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors`}
+                  className={`w-full bg-slate-900 border ${
+                    errors.email ? 'border-rose-500' : 'border-white/[0.1]'
+                  } rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-colors`}
                 />
               </div>
               {errors.email && (
-                <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1">
+                <p className="text-xs text-rose-400 mt-1 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
                   {errors.email}
                 </p>
@@ -144,20 +140,20 @@ export default function Register() {
 
             {/* Password */}
             <div>
-              <label className="block text-xs font-mono uppercase text-slate-400 mb-1.5">
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
                 Password
               </label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="At least 6 characters"
-                  className={`w-full bg-slate-950/80 border ${
-                    errors.password ? 'border-rose-500/80' : 'border-slate-700/80'
-                  } rounded-xl py-2.5 pl-10 pr-11 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors`}
+                  className={`w-full bg-slate-900 border ${
+                    errors.password ? 'border-rose-500' : 'border-white/[0.1]'
+                  } rounded-xl py-2.5 pl-10 pr-10 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-colors`}
                 />
                 <button
                   type="button"
@@ -168,7 +164,7 @@ export default function Register() {
                 </button>
               </div>
               {errors.password && (
-                <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1">
+                <p className="text-xs text-rose-400 mt-1 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
                   {errors.password}
                 </p>
@@ -177,52 +173,52 @@ export default function Register() {
 
             {/* Confirm Password */}
             <div>
-              <label className="block text-xs font-mono uppercase text-slate-400 mb-1.5">
-                Confirm Password
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                Confirm password
               </label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  placeholder="Re-enter your password"
-                  className={`w-full bg-slate-950/80 border ${
-                    errors.confirmPassword ? 'border-rose-500/80' : 'border-slate-700/80'
-                  } rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors`}
+                  placeholder="Re-enter password"
+                  className={`w-full bg-slate-900 border ${
+                    errors.confirmPassword ? 'border-rose-500' : 'border-white/[0.1]'
+                  } rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-colors`}
                 />
               </div>
               {errors.confirmPassword && (
-                <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1">
+                <p className="text-xs text-rose-400 mt-1 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
                   {errors.confirmPassword}
                 </p>
               )}
             </div>
 
-            {/* Register Action */}
+            {/* Action */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 font-bold rounded-xl text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-cyan-950 mt-2"
+              className="w-full py-2.5 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white font-medium rounded-xl text-sm transition-colors shadow-sm mt-2 flex items-center justify-center gap-2"
             >
               {loading ? (
-                <span>Generating ID...</span>
+                <span>Creating account...</span>
               ) : (
                 <>
-                  <span>Complete Registration</span>
+                  <span>Create account</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
 
-          {/* Footer Login Link */}
-          <div className="mt-8 text-center text-xs text-slate-400 pt-6 border-t border-slate-800">
-            <span>Already registered? </span>
-            <Link to="/login" className="text-cyan-400 hover:underline font-semibold">
-              Log In to TourFlow
+          {/* Footer */}
+          <div className="mt-6 text-center text-xs text-slate-400 pt-5 border-t border-white/[0.06]">
+            <span>Already have an account? </span>
+            <Link to="/login" className="text-sky-400 hover:underline font-medium">
+              Sign in
             </Link>
           </div>
         </div>

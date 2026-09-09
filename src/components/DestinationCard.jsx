@@ -1,48 +1,43 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Clock, Users, ArrowUpRight, Compass } from 'lucide-react';
+import { MapPin, Clock, Users, ArrowRight } from 'lucide-react';
 import CrowdBadge from './CrowdBadge';
 
 /**
  * DestinationCard component
- * Displays destination photo, crowd badge, wait time, queue depth, and action links.
+ * Crisp white travel card featuring photography, clear crowd badges, wait times, and queue data.
  */
 export default function DestinationCard({ destination, onQuickJoin }) {
   if (!destination) return null;
 
   return (
-    <div className="group relative bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden hover:border-cyan-500/40 hover:shadow-xl hover:shadow-cyan-950/30 transition-all duration-300 flex flex-col">
-      {/* Image Container with telemetry overlay */}
-      <div className="relative aspect-[16/10] overflow-hidden bg-slate-950">
+    <div className="group bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl overflow-hidden transition-all duration-200 flex flex-col shadow-card hover:shadow-card-hover">
+      {/* Photography Section */}
+      <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
         <img
           src={destination.imageUrl}
           alt={destination.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100"
+          className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
           loading="lazy"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+        {/* Subtle bottom shadow gradient on image */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent" />
 
-        {/* Top Badges */}
-        <div className="absolute top-3 left-3 flex items-center gap-2">
+        {/* Top Crowd Badge */}
+        <div className="absolute top-3 left-3">
           <CrowdBadge level={destination.crowdLevel} size="sm" />
         </div>
 
-        {/* Coordinates micro-tag */}
-        <div className="absolute top-3 right-3 bg-slate-950/75 backdrop-blur-md border border-slate-700/60 text-[10px] font-mono text-slate-300 px-2 py-0.5 rounded flex items-center gap-1">
-          <Compass className="w-3 h-3 text-cyan-400" />
-          <span>{destination.coordinates}</span>
-        </div>
-
-        {/* Live Wait Pill on bottom of image */}
-        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs font-mono">
-          <span className="bg-slate-900/90 backdrop-blur-md text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-md flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-amber-400" />
-            <span>WAIT: {destination.estimatedWait}</span>
+        {/* Bottom image metadata */}
+        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs font-medium">
+          <span className="bg-white/95 backdrop-blur-sm text-slate-800 px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow-sm border border-white/60">
+            <Clock className="w-3.5 h-3.5 text-amber-600" />
+            <span>~{destination.estimatedWait} wait</span>
           </span>
 
-          <span className="bg-slate-900/90 backdrop-blur-md text-cyan-300 border border-cyan-500/30 px-2.5 py-1 rounded-md flex items-center gap-1.5">
-            <Users className="w-3.5 h-3.5 text-cyan-400" />
-            <span>QUEUE: #{destination.currentQueue}</span>
+          <span className="bg-white/95 backdrop-blur-sm text-slate-800 px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow-sm border border-white/60">
+            <Users className="w-3.5 h-3.5 text-sky-600" />
+            <span>#{destination.currentQueue} waiting</span>
           </span>
         </div>
       </div>
@@ -50,39 +45,36 @@ export default function DestinationCard({ destination, onQuickJoin }) {
       {/* Card Content */}
       <div className="p-5 flex flex-col flex-grow justify-between">
         <div>
-          <div className="flex items-start justify-between gap-2 mb-1.5">
-            <h3 className="text-lg font-bold text-white group-hover:text-cyan-300 transition-colors font-sans">
-              {destination.name}
-            </h3>
-          </div>
+          <h3 className="text-lg font-bold text-slate-900 group-hover:text-sky-700 transition-colors">
+            {destination.name}
+          </h3>
 
-          <p className="text-xs font-medium text-slate-400 flex items-center gap-1.5 mb-2.5">
-            <MapPin className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+          <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-1 mb-2.5">
+            <MapPin className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
             <span className="truncate">{destination.location}</span>
           </p>
 
-          <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed mb-4">
+          <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed mb-4">
             {destination.shortDescription}
           </p>
         </div>
 
-        {/* Bottom Actions */}
-        <div className="pt-3 border-t border-slate-800/80 flex items-center gap-2">
+        {/* Card Footer Actions */}
+        <div className="pt-3 border-t border-slate-100 flex items-center gap-2">
           <Link
             to={`/destinations/${destination.id}`}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700/80 text-slate-200 hover:text-white border border-slate-700/80 py-2 px-3 rounded-lg text-xs font-medium transition-all"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 py-2 px-3 rounded-lg text-xs font-semibold transition-colors"
           >
-            <span>View Details</span>
-            <ArrowUpRight className="w-3.5 h-3.5 text-cyan-400" />
+            <span>View details</span>
+            <ArrowRight className="w-3.5 h-3.5 text-slate-500 group-hover:translate-x-0.5 transition-transform" />
           </Link>
 
           {onQuickJoin && (
             <button
               onClick={() => onQuickJoin(destination)}
-              className="inline-flex items-center justify-center gap-1.5 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 py-2 px-3 rounded-lg text-xs font-medium font-mono transition-all"
-              title="Quick Queue Pass"
+              className="inline-flex items-center justify-center bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 py-2 px-3 rounded-lg text-xs font-semibold transition-colors"
             >
-              <span>Queue</span>
+              <span>Join queue</span>
             </button>
           )}
         </div>
