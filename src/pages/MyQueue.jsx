@@ -12,13 +12,14 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { useQueue } from '../context/QueueContext';
-import { DESTINATIONS } from '../data/destinations';
+import { fetchDestinations } from '../services/api';
 import QueueProgress from '../components/QueueProgress';
 import QRPass from '../components/QRPass';
 import QueueStatus from '../components/QueueStatus';
 
 export default function MyQueue() {
-  const { activeQueue, cancelQueue, joinQueue } = useQueue();
+  const { activeQueue, cancelQueue, joinQueue, refreshQueueStatus } = useQueue();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [notification, setNotification] = useState('');
 
@@ -29,11 +30,35 @@ export default function MyQueue() {
     setTimeout(() => setNotification(''), 4000);
   };
 
+<<<<<<< Updated upstream
   const handleSimulateDefaultQueue = () => {
     const taj = DESTINATIONS[0];
     joinQueue(taj, 2);
     setNotification('Sample queue pass for Taj Mahal activated.');
+=======
+  const showNotification = (message) => {
+    setNotification(message);
+>>>>>>> Stashed changes
     setTimeout(() => setNotification(''), 4000);
+  };
+
+  // Creates a real booking (2 people) for the first destination in the dataset
+  const handleSimulateDefaultQueue = async () => {
+    try {
+      const [firstDestination] = await fetchDestinations();
+      const res = await joinQueue(firstDestination, 2);
+      showNotification(res.success ? `Sample queue pass created for ${firstDestination.name}.` : res.error);
+    } catch (err) {
+      showNotification(err.message);
+    }
+  };
+
+  // GET /api/queue/:bookingId
+  const handleCheckStatus = async () => {
+    setIsRefreshing(true);
+    const res = await refreshQueueStatus();
+    setIsRefreshing(false);
+    showNotification(res.success ? 'Queue status updated from server.' : res.error || 'Could not check status.');
   };
 
   return (
@@ -41,7 +66,17 @@ export default function MyQueue() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white/[0.08] pb-6">
         <div>
+<<<<<<< Updated upstream
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+=======
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            <span className="text-[11px] font-mono tracking-widest uppercase text-cyan-400 font-semibold">
+              DIGITAL FIFO QUEUE
+            </span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-black text-white font-sans tracking-tight">
+>>>>>>> Stashed changes
             My Queue Pass
           </h1>
           <p className="text-sm text-slate-400 mt-1">
@@ -50,6 +85,7 @@ export default function MyQueue() {
         </div>
 
         {activeQueue && (
+<<<<<<< Updated upstream
           <button
             onClick={() => setShowCancelModal(true)}
             className="px-3.5 py-2 bg-white/[0.05] hover:bg-rose-500/10 text-slate-300 hover:text-rose-400 border border-white/[0.08] hover:border-rose-500/30 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 self-start sm:self-auto"
@@ -57,6 +93,25 @@ export default function MyQueue() {
             <XCircle className="w-3.5 h-3.5" />
             <span>Cancel pass</span>
           </button>
+=======
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleCheckStatus}
+              disabled={isRefreshing}
+              className="px-4 py-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-mono uppercase tracking-wider transition-colors flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 text-cyan-400 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span>Check Status</span>
+            </button>
+            <button
+              onClick={() => setShowCancelModal(true)}
+              className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-mono uppercase tracking-wider transition-colors flex items-center gap-1.5"
+            >
+              <XCircle className="w-4 h-4 text-rose-400" />
+              <span>Cancel Queue</span>
+            </button>
+          </div>
+>>>>>>> Stashed changes
         )}
       </div>
 
@@ -100,7 +155,23 @@ export default function MyQueue() {
                 {/* Parameters Grid */}
                 <div className="grid grid-cols-2 gap-4 py-4 border-y border-white/[0.06] text-xs">
                   <div>
+<<<<<<< Updated upstream
                     <span className="text-slate-400 block text-[11px]">Pass Status</span>
+=======
+                    <span className="text-slate-500 block text-[11px] uppercase">Booking ID</span>
+                    <span className="text-cyan-400 font-bold block mt-1">{activeQueue.id}</span>
+                  </div>
+
+                  <div>
+                    <span className="text-slate-500 block text-[11px] uppercase">Queue Position</span>
+                    <span className="text-amber-400 font-bold block mt-1">
+                      {activeQueue.queuePosition ?? '-'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-slate-500 block text-[11px] uppercase">Booking Status</span>
+>>>>>>> Stashed changes
                     <div className="mt-1">
                       <QueueStatus status={activeQueue.status} size="sm" />
                     </div>

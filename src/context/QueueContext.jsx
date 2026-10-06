@@ -1,38 +1,53 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createQueueBooking, fetchQueueStatus } from '../services/api';
 
 const QueueContext = createContext();
 
-const INITIAL_MOCK_QUEUE = {
-  id: 'TF-8942',
-  destinationId: 'taj-mahal',
-  destinationName: 'Taj Mahal',
-  destinationLocation: 'Agra, Uttar Pradesh',
-  destinationImage: 'https://images.unsplash.com/photo-1564507592333-c60657eea523?auto=format&fit=crop&w=1200&q=80',
-  queueNumber: '#27',
-  numericQueueNumber: 27,
-  positionAhead: 18,
-  estimatedWait: '~25 MIN',
-  estimatedWaitMinutes: 25,
-  visitorCount: 2,
-  status: 'In Queue', // 'In Queue', 'Called', 'Active'
-  bookingTime: '09:45 AM',
-  expiryTime: '11:15 AM',
-  ticketDate: 'Today',
-  gate: 'East Imperial Gate',
-  tier: 'Standard Digital FIFO'
+const STATUS_LABELS = {
+  WAITING: 'In Queue',
+  CALLED: 'Called',
+  COMPLETED: 'Active',
 };
+
+function formatTime(date) {
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+/**
+ * Converts a booking returned by the backend into the object
+ * the existing queue pages (MyQueue, QRPass, Navbar...) already use.
+ */
+function toActiveQueue(booking, destination = {}) {
+  const createdAt = new Date(booking.createdAt);
+  return {
+    id: booking.bookingId,
+    destinationId: booking.destinationId,
+    destinationName: booking.destinationName,
+    destinationLocation: destination.location,
+    destinationImage: destination.imageUrl,
+    queueNumber: `#${booking.queueNumber}`,
+    numericQueueNumber: booking.queueNumber,
+    queuePosition: booking.queuePosition,
+    positionAhead: booking.peopleAhead,
+    estimatedWait: `~${booking.estimatedWaitMinutes} MIN`,
+    estimatedWaitMinutes: booking.estimatedWaitMinutes,
+    visitorCount: booking.numberOfPeople,
+    status: STATUS_LABELS[booking.status] || booking.status,
+    bookingTime: formatTime(createdAt),
+    expiryTime: formatTime(new Date(createdAt.getTime() + 60 * 60000)),
+    ticketDate: 'Today',
+    gate: 'Main Entrance',
+    tier: 'Standard Digital FIFO',
+  };
+}
 
 export function QueueProvider({ children }) {
   const [activeQueue, setActiveQueue] = useState(() => {
-    const saved = localStorage.getItem('tourflow_active_queue');
-    if (saved !== null) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return INITIAL_MOCK_QUEUE;
-      }
+    try {
+      return JSON.parse(localStorage.getItem('tourflow_active_queue'));
+    } catch (e) {
+      return null;
     }
-    return INITIAL_MOCK_QUEUE;
   });
 
   useEffect(() => {
@@ -43,49 +58,42 @@ export function QueueProvider({ children }) {
     }
   }, [activeQueue]);
 
+  // On first load, get the latest status of a saved booking from the backend
+  useEffect(() => {
+    if (activeQueue) refreshQueueStatus();
+  }, []);
+
   /**
-   * Business Rule: Maximum 4 visitors allowed per booking.
+   * Creates a booking on the backend.
+   * The max-4-people rule is enforced by the backend (POST /api/queue).
    */
-  const joinQueue = (destination, visitorCount) => {
-    const count = parseInt(visitorCount, 10);
-    if (isNaN(count) || count < 1 || count > 4) {
-      return {
-        success: false,
-        error: 'Maximum 4 visitors are allowed per booking.'
-      };
+  const joinQueue = async (destination, visitorCount) => {
+    try {
+      const booking = await createQueueBooking(destination.id, visitorCount);
+      const newQueue = toActiveQueue(booking, destination);
+      setActiveQueue(newQueue);
+      return { success: true, booking: newQueue };
+    } catch (err) {
+      return { success: false, error: err.message };
     }
+  };
 
-    const randomQueueNum = Math.floor(15 + Math.random() * 45);
-    const peopleAhead = Math.max(3, randomQueueNum - 9);
-    const waitMins = Math.round(peopleAhead * 1.4);
-
-    const now = new Date();
-    const bookingTimeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const expiryDate = new Date(now.getTime() + 60 * 60000);
-    const expiryTimeStr = expiryDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    const newBooking = {
-      id: 'TF-' + Math.floor(1000 + Math.random() * 9000),
-      destinationId: destination.id,
-      destinationName: destination.name,
-      destinationLocation: destination.location,
-      destinationImage: destination.imageUrl,
-      queueNumber: `#${randomQueueNum}`,
-      numericQueueNumber: randomQueueNum,
-      positionAhead: peopleAhead,
-      estimatedWait: `~${waitMins} MIN`,
-      estimatedWaitMinutes: waitMins,
-      visitorCount: count,
-      status: 'In Queue',
-      bookingTime: bookingTimeStr,
-      expiryTime: expiryTimeStr,
-      ticketDate: 'Today',
-      gate: 'Main Verified Entrance',
-      tier: 'Standard Digital FIFO'
-    };
-
-    setActiveQueue(newBooking);
-    return { success: true, booking: newBooking };
+  // GET /api/queue/:bookingId
+  const refreshQueueStatus = async () => {
+    if (!activeQueue) return { success: false };
+    try {
+      const booking = await fetchQueueStatus(activeQueue.id);
+      setActiveQueue((prev) => ({
+        ...toActiveQueue(booking),
+        destinationLocation: prev?.destinationLocation,
+        destinationImage: prev?.destinationImage,
+      }));
+      return { success: true };
+    } catch (err) {
+      // Booking no longer exists on the server (e.g. old demo data)
+      if (err.status === 404) setActiveQueue(null);
+      return { success: false, error: err.message };
+    }
   };
 
   const cancelQueue = () => {
@@ -93,7 +101,7 @@ export function QueueProvider({ children }) {
   };
 
   return (
-    <QueueContext.Provider value={{ activeQueue, joinQueue, cancelQueue }}>
+    <QueueContext.Provider value={{ activeQueue, joinQueue, refreshQueueStatus, cancelQueue }}>
       {children}
     </QueueContext.Provider>
   );

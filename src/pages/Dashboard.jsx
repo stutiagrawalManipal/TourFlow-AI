@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -9,7 +9,7 @@ import {
   Ticket,
   ArrowRight
 } from 'lucide-react';
-import { DESTINATIONS } from '../data/destinations';
+import { fetchDestinations } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useQueue } from '../context/QueueContext';
 import StatCard from '../components/StatCard';
@@ -22,6 +22,14 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [crowdFilter, setCrowdFilter] = useState('ALL');
   const [selectedDestinationForModal, setSelectedDestinationForModal] = useState(null);
+  const [destinations, setDestinations] = useState([]);
+
+  // Load destinations from the backend, most popular first
+  useEffect(() => {
+    fetchDestinations()
+      .then((data) => setDestinations([...data].sort((a, b) => b.popularityScore - a.popularityScore)))
+      .catch(() => setDestinations([]));
+  }, []);
   const navigate = useNavigate();
 
   const handleSearchSubmit = (e) => {
@@ -33,7 +41,12 @@ export default function Dashboard() {
     }
   };
 
+<<<<<<< Updated upstream
   const filteredDestinations = DESTINATIONS.filter((dest) => {
+=======
+  // Filter destinations for the live crowd intelligence feed
+  const filteredDestinations = destinations.filter((dest) => {
+>>>>>>> Stashed changes
     const matchesSearch =
       dest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       dest.location.toLowerCase().includes(searchQuery.toLowerCase());
@@ -41,7 +54,7 @@ export default function Dashboard() {
     if (!matchesSearch) return false;
     if (crowdFilter === 'ALL') return true;
     return dest.crowdLevel === crowdFilter;
-  });
+  }).slice(0, 6);
 
   const userName = user ? user.name.split(' ')[0] : 'Explorer';
 

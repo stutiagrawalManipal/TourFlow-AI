@@ -12,6 +12,7 @@ export default function QueueModal({ destination, isOpen, onClose }) {
   const [visitorCount, setVisitorCount] = useState(1);
   const [errorMessage, setErrorMessage] = useState('');
   const [confirmedBooking, setConfirmedBooking] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { joinQueue } = useQueue();
   const navigate = useNavigate();
@@ -57,17 +58,18 @@ export default function QueueModal({ destination, isOpen, onClose }) {
     }
   };
 
-  const handleConfirm = () => {
-    if (visitorCount > 4) {
-      setErrorMessage('Maximum 4 visitors are allowed per booking.');
-      return;
-    }
+  // The request is always sent to the backend, which enforces the
+  // max-4-people rule itself (so 5+ is rejected by the server).
+  const handleConfirm = async () => {
+    setIsSubmitting(true);
+    const res = await joinQueue(destination, visitorCount);
+    setIsSubmitting(false);
 
-    const res = joinQueue(destination, visitorCount);
     if (res.success) {
+      setErrorMessage('');
       setConfirmedBooking(res.booking);
     } else {
-      setErrorMessage(res.error || 'Unable to join queue.');
+      setErrorMessage(`Rejected by server: ${res.error || 'Unable to join queue.'}`);
     }
   };
 
@@ -111,10 +113,17 @@ export default function QueueModal({ destination, isOpen, onClose }) {
                   className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
                 />
                 <div>
+<<<<<<< Updated upstream
                   <h4 className="text-sm font-bold text-slate-900">{destination.name}</h4>
                   <p className="text-xs text-slate-500">{destination.location}</p>
                   <p className="text-xs text-sky-700 font-semibold mt-0.5">
                     Est. wait: {destination.estimatedWait} · Crowd: {destination.crowdLevel.toLowerCase()}
+=======
+                  <h4 className="text-base font-bold text-white">{destination.name}</h4>
+                  <p className="text-xs text-slate-400">{destination.location}</p>
+                  <p className="text-[11px] font-mono text-cyan-400 mt-1">
+                    Crowd (demo): {destination.crowdLevel} • Est. Wait: {destination.estimatedWait}
+>>>>>>> Stashed changes
                   </p>
                 </div>
               </div>
@@ -202,10 +211,17 @@ export default function QueueModal({ destination, isOpen, onClose }) {
                 <button
                   type="button"
                   onClick={handleConfirm}
+<<<<<<< Updated upstream
                   disabled={visitorCount > 4}
                   className="flex-1 py-2.5 px-4 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white font-bold rounded-lg text-sm transition-colors shadow-sm"
                 >
                   Confirm booking
+=======
+                  disabled={isSubmitting}
+                  className="flex-1 py-2.5 px-4 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 disabled:opacity-50 text-slate-950 font-bold rounded-xl text-sm transition-all shadow-md shadow-cyan-950/40"
+                >
+                  {isSubmitting ? 'Booking...' : 'Confirm & Join Queue'}
+>>>>>>> Stashed changes
                 </button>
               </div>
             </div>
@@ -233,8 +249,17 @@ export default function QueueModal({ destination, isOpen, onClose }) {
                   <span className="text-slate-800 font-bold font-mono">{confirmedBooking.id}</span>
                 </div>
                 <div className="flex justify-between">
+<<<<<<< Updated upstream
                   <span className="text-slate-500">Visitors:</span>
                   <span className="text-slate-900 font-semibold">{confirmedBooking.visitorCount} {confirmedBooking.visitorCount === 1 ? 'person' : 'people'}</span>
+=======
+                  <span className="text-slate-400">Queue Position:</span>
+                  <span className="text-white font-bold">{confirmedBooking.queuePosition}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Visitors:</span>
+                  <span className="text-white">{confirmedBooking.visitorCount} {confirmedBooking.visitorCount === 1 ? 'Person' : 'People'}</span>
+>>>>>>> Stashed changes
                 </div>
                 <div className="flex justify-between border-t border-slate-200 pt-2">
                   <span className="text-slate-500">Estimated Wait:</span>

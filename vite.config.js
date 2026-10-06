@@ -7,5 +7,9 @@ export default defineConfig({
   server: {
     port: 3000,
     open: false,
+    // Forward API calls to the backend (backend/server.js)
+    proxy: {
+      '/api': 'http://localhost:5000',
+    },
   },
 });
