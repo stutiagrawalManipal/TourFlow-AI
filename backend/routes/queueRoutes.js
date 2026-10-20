@@ -1,9 +1,12 @@
 import { Router } from 'express';
-import { joinQueue, getQueueStatus } from '../controllers/queueController.js';
+import { joinQueue, myBookings, getBooking, cancelBooking } from '../controllers/queueController.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
-router.post('/', joinQueue);               // POST /api/queue
-router.get('/:bookingId', getQueueStatus); // GET /api/queue/:bookingId
+router.post('/', requireRole('tourist'), joinQueue);          // book (tourists only)
+router.get('/mine', requireAuth, myBookings);                 // my bookings
+router.get('/:bookingId', requireAuth, getBooking);           // owner or admin
+router.delete('/:bookingId', requireAuth, cancelBooking);     // owner or admin
 
 export default router;

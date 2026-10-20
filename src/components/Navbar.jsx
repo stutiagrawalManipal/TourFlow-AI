@@ -1,35 +1,39 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Compass, Users, Map, Sparkles, User, Menu, X, LogOut, Ticket } from 'lucide-react';
+import { Compass, Map, Sparkles, Menu, X, LogOut, Ticket, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useQueue } from '../context/QueueContext';
 
 /**
  * Navbar component
- * Futuristic command navigation with live queue alert indicator and mobile drawer.
+ * Main navigation with active booking indicator and mobile drawer.
+ * Shows tourist links, admin links, or login buttons depending on the session.
  */
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const { activeQueue } = useQueue();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const navLinks = [
-    { name: 'Dashboard', path: '/dashboard', icon: Compass },
-    { name: 'Destinations', path: '/destinations', icon: Map },
-    {
-      name: 'My Queue',
-      path: '/queue',
-      icon: Ticket,
-      badge: activeQueue ? activeQueue.queueNumber : null
-    },
-    { name: 'AI Guide', path: '/ai-guide', icon: Sparkles },
-  ];
+  // Links depend on who is logged in (the backend enforces access anyway)
+  const navLinks = isAdmin
+    ? [
+        { name: 'Admin', path: '/admin', icon: ShieldCheck },
+        { name: 'Destinations', path: '/destinations', icon: Map },
+      ]
+    : [
+        ...(user ? [{ name: 'Dashboard', path: '/dashboard', icon: Compass }] : []),
+        { name: 'Destinations', path: '/destinations', icon: Map },
+        ...(user
+          ? [{ name: 'My Queue', path: '/queue', icon: Ticket, badge: activeQueue ? activeQueue.queueNumber : null }]
+          : []),
+        { name: 'AI Guide', path: '/ai-guide', icon: Sparkles },
+      ];
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+  const handleLogout = async () => {
+    await logout();
+    navigate(isAdmin ? '/admin/login' : '/');
   };
 
   const isActive = (path) => {
@@ -100,8 +104,8 @@ export default function Navbar() {
                     <p className="text-xs font-semibold text-white leading-tight">
                       {user.name}
                     </p>
-                    <p className="text-[10px] font-mono text-cyan-400">
-                      {user.role || 'Tourist'}
+                    <p className={`text-[10px] font-mono uppercase ${isAdmin ? 'text-amber-400' : 'text-cyan-400'}`}>
+                      {isAdmin ? 'Administrator' : 'Tourist'}
                     </p>
                   </div>
                 </div>

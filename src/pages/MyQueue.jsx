@@ -1,293 +1,209 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Ticket,
-  Clock,
-  Users,
-  MapPin,
-  Compass,
-  AlertTriangle,
-  ArrowRight,
-  ShieldCheck,
-  RefreshCw,
-  QrCode,
-  CheckCircle2,
-  XCircle
-} from 'lucide-react';
+import { Ticket, MapPin, AlertTriangle, ArrowRight, RefreshCw, CheckCircle2, XCircle, History } from 'lucide-react';
 import { useQueue } from '../context/QueueContext';
-import { fetchDestinations } from '../services/api';
 import QueueProgress from '../components/QueueProgress';
 import QRPass from '../components/QRPass';
 import QueueStatus from '../components/QueueStatus';
 
+const formatTime = (iso) => (iso ? new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '-');
+
 export default function MyQueue() {
-  const { activeQueue, cancelQueue, joinQueue, refreshQueueStatus } = useQueue();
+  const { bookings, activeBookings, loadError, refreshBookings, cancelBooking } = useQueue();
+  const [selectedId, setSelectedId] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [notification, setNotification] = useState('');
+  const [bookingToCancel, setBookingToCancel] = useState(null);
+  const [notification, setNotification] = useState(null);
 
-  const handleCancel = () => {
-    cancelQueue();
-    setShowCancelModal(false);
-    setNotification('Your queue pass has been cancelled.');
-    setTimeout(() => setNotification(''), 4000);
+  // keep positions fresh: reload on open and every 20 seconds
+  useEffect(() => {
+    refreshBookings();
+    const timer = setInterval(refreshBookings, 20000);
+    return () => clearInterval(timer);
+  }, [refreshBookings]);
+
+  const selected = activeBookings.find((b) => b.bookingId === selectedId) || activeBookings[0];
+  const history = bookings.filter((b) => b.status === 'CHECKED_OUT' || b.status === 'CANCELLED');
+
+  const notify = (type, text) => {
+    setNotification({ type, text });
+    setTimeout(() => setNotification(null), 4000);
   };
 
-  const showNotification = (message) => {
-    setNotification(message);
-    setTimeout(() => setNotification(''), 4000);
-  };
-
-  // Creates a real booking (2 people) for the first destination in the dataset
-  const handleSimulateDefaultQueue = async () => {
-    try {
-      const [firstDestination] = await fetchDestinations();
-      const res = await joinQueue(firstDestination, 2);
-      showNotification(res.success ? `Sample queue pass created for ${firstDestination.name}.` : res.error);
-    } catch (err) {
-      showNotification(err.message);
-    }
-  };
-
-  // GET /api/queue/:bookingId
-  const handleCheckStatus = async () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    const res = await refreshQueueStatus();
+    const result = await refreshBookings();
     setIsRefreshing(false);
-    showNotification(res.success ? 'Queue status updated from server.' : res.error || 'Could not check status.');
+    notify(result.success ? 'info' : 'error', result.success ? 'Queue status updated from the server.' : result.error || 'Could not refresh.');
+  };
+
+  const handleCancel = async () => {
+    const result = await cancelBooking(bookingToCancel.bookingId);
+    setBookingToCancel(null);
+    notify(result.success ? 'info' : 'error', result.success ? 'Your booking has been cancelled.' : result.error);
   };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      {/* Top Header */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-800 pb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-            <span className="text-[11px] font-mono tracking-widest uppercase text-cyan-400 font-semibold">
-              DIGITAL FIFO QUEUE
-            </span>
+            <span className="text-[11px] font-mono tracking-widest uppercase text-cyan-400 font-semibold">DIGITAL FIFO QUEUE</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-white font-sans tracking-tight">
-            My Queue Pass
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Track your position in the digital FIFO queue and present your pass at the entrance gate.
-          </p>
+          <h1 className="text-3xl sm:text-4xl font-black text-white font-sans tracking-tight">My Queue</h1>
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">Your bookings, live positions from the server, and your QR queue pass.</p>
         </div>
-
-        {activeQueue && (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleCheckStatus}
-              disabled={isRefreshing}
-              className="px-4 py-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-mono uppercase tracking-wider transition-colors flex items-center gap-1.5 disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 text-cyan-400 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span>Check Status</span>
-            </button>
-            <button
-              onClick={() => setShowCancelModal(true)}
-              className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-xl text-xs font-mono uppercase tracking-wider transition-colors flex items-center gap-1.5"
-            >
-              <XCircle className="w-4 h-4 text-rose-400" />
-              <span>Cancel Queue</span>
-            </button>
-          </div>
-        )}
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="self-start sm:self-auto px-4 py-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-xl text-xs font-mono uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-50"
+        >
+          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span>Refresh Status</span>
+        </button>
       </div>
 
       {notification && (
-        <div className="p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl text-xs font-mono text-cyan-300 flex items-center justify-between">
-          <span>{notification}</span>
-          <button onClick={() => setNotification('')} className="text-slate-400 hover:text-white">
-            ✕
-          </button>
+        <div className={`p-4 rounded-2xl text-xs font-mono flex items-center justify-between border ${notification.type === 'error' ? 'bg-rose-500/10 border-rose-500/30 text-rose-300' : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300'}`}>
+          <span>{notification.text}</span>
+          <button onClick={() => setNotification(null)} className="text-slate-400 hover:text-white" aria-label="Dismiss">✕</button>
         </div>
       )}
+      {loadError && !notification && (
+        <div className="p-4 rounded-2xl text-xs font-mono bg-rose-500/10 border border-rose-500/30 text-rose-300">{loadError}</div>
+      )}
 
-      {activeQueue ? (
+      {selected ? (
         <div className="space-y-8">
-          {/* Visual Queue Progression Flow */}
-          <QueueProgress
-            queueNumber={activeQueue.queueNumber}
-            positionAhead={activeQueue.positionAhead}
-            estimatedWait={activeQueue.estimatedWait}
-            status={activeQueue.status}
-          />
+          {/* Tabs if the tourist has several active bookings */}
+          {activeBookings.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              {activeBookings.map((b) => (
+                <button
+                  key={b.bookingId}
+                  onClick={() => setSelectedId(b.bookingId)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-mono border ${b.bookingId === selected.bookingId ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'}`}
+                >
+                  {b.destinationName} • {b.bookingId}
+                </button>
+              ))}
+            </div>
+          )}
 
-          {/* 2-Column Layout: Queue Info & High-Tech QR Pass */}
+          {selected.status === 'WAITING' ? (
+            <QueueProgress
+              queueNumber={`#${selected.queuePosition}`}
+              positionAhead={selected.peopleAhead}
+              estimatedWait={`~${selected.estimatedWaitMinutes} MIN`}
+              status="Waiting"
+            />
+          ) : (
+            <div className="p-5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-sm text-emerald-300 flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5" />
+              <span>You were checked in at {formatTime(selected.checkedInAt)}. Staff will check you out when you leave.</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Left Column: Queue Metadata and Gate Instructions */}
-            <div className="lg:col-span-6 space-y-6">
-              <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 sm:p-8 backdrop-blur-md space-y-6">
-                <div>
-                  <span className="text-xs font-mono uppercase text-cyan-400 tracking-wider font-semibold block mb-1">
-                    ACTIVE BOOKING SUMMARY
-                  </span>
-                  <h3 className="text-2xl font-bold text-white">
-                    {activeQueue.destinationName}
-                  </h3>
-                  <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-1">
-                    <MapPin className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>{activeQueue.destinationLocation}</span>
-                  </p>
-                </div>
+            <div className="lg:col-span-6 bg-slate-900/80 border border-slate-800 rounded-3xl p-6 sm:p-8 backdrop-blur-md space-y-6">
+              <div>
+                <span className="text-xs font-mono uppercase text-cyan-400 tracking-wider font-semibold block mb-1">BOOKING SUMMARY</span>
+                <Link to={`/destinations/${selected.destinationId}`} className="text-2xl font-bold text-white hover:text-cyan-300">{selected.destinationName}</Link>
+                <p className="text-xs text-slate-400 flex items-center gap-1 mt-1">
+                  <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>{selected.destinationLocation}</span>
+                </p>
+              </div>
 
-                {/* Status and Parameters Grid */}
-                <div className="grid grid-cols-2 gap-4 py-4 border-y border-slate-800 font-mono text-xs">
-                  <div>
-                    <span className="text-slate-500 block text-[11px] uppercase">Booking ID</span>
-                    <span className="text-cyan-400 font-bold block mt-1">{activeQueue.id}</span>
-                  </div>
+              <div className="grid grid-cols-2 gap-4 py-4 border-y border-slate-800 font-mono text-xs">
+                <Item label="Booking ID" value={<span className="text-cyan-400 font-bold">{selected.bookingId}</span>} />
+                <Item label="Status" value={<QueueStatus status={selected.status} size="sm" />} />
+                <Item label="Queue Position" value={<span className="text-amber-400 font-bold">{selected.queuePosition ?? '-'}</span>} />
+                <Item label="Ticket Number" value={selected.ticketNumber} />
+                <Item label="Party Size" value={`${selected.numberOfPeople} ${selected.numberOfPeople === 1 ? 'Visitor' : 'Visitors'}`} />
+                <Item label="Booked At" value={formatTime(selected.createdAt)} />
+              </div>
 
-                  <div>
-                    <span className="text-slate-500 block text-[11px] uppercase">Queue Position</span>
-                    <span className="text-amber-400 font-bold block mt-1">
-                      {activeQueue.queuePosition ?? '-'}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-500 block text-[11px] uppercase">Booking Status</span>
-                    <div className="mt-1">
-                      <QueueStatus status={activeQueue.status} size="sm" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-500 block text-[11px] uppercase">Party Size</span>
-                    <span className="text-white font-bold block mt-1">
-                      {activeQueue.visitorCount} {activeQueue.visitorCount === 1 ? 'Visitor' : 'Visitors'}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-500 block text-[11px] uppercase">Booking Time</span>
-                    <span className="text-slate-300 block mt-1">
-                      {activeQueue.bookingTime}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-500 block text-[11px] uppercase">Assigned Gate</span>
-                    <span className="text-cyan-400 font-bold block mt-1">
-                      {activeQueue.gate || 'Main Entrance'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Gate Procedure Guide */}
-                <div className="space-y-3 text-xs text-slate-300">
-                  <h4 className="font-semibold text-white uppercase font-mono tracking-wider text-[11px]">
-                    Visitor Entry Instructions:
-                  </h4>
-                  <ul className="space-y-2">
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-                      <span>Proceed to the TourFlow automated turnstiles at your assigned gate.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-                      <span>Have the QR pass on your screen ready for the optical scanner.</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-                      <span>Maximum {activeQueue.visitorCount} visitors will be admitted on this single verified token.</span>
-                    </li>
-                  </ul>
-                </div>
-
-                {/* Cancel Queue Action */}
-                <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
-                  <span className="text-xs text-slate-400">
-                    Need to change plans?
-                  </span>
-                  <button
-                    onClick={() => setShowCancelModal(true)}
-                    className="text-xs font-mono text-rose-400 hover:text-rose-300 hover:underline uppercase"
-                  >
-                    Cancel Queue Reservation
-                  </button>
-                </div>
+              <div className="space-y-2 text-xs text-slate-300">
+                <h4 className="font-semibold text-white uppercase font-mono tracking-wider text-[11px]">How entry works:</h4>
+                <p className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />Wait until your position is near the front, then go to the entrance.</p>
+                <p className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />Show the QR pass; staff look it up and check your group in.</p>
+                <p className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />The waiting time is an estimate based on the queue and entry rate.</p>
               </div>
             </div>
 
-            {/* Right Column: Visual QR Travel Pass */}
-            <div className="lg:col-span-6 flex justify-center">
-              <QRPass queue={activeQueue} onCancel={() => setShowCancelModal(true)} />
+            <div className="lg:col-span-6">
+              <QRPass booking={selected} onCancel={() => setBookingToCancel(selected)} />
             </div>
           </div>
         </div>
       ) : (
-        /* Empty State */
-        <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-12 text-center max-w-xl mx-auto space-y-6">
+        <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-12 text-center max-w-xl mx-auto space-y-5">
           <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto">
             <Ticket className="w-8 h-8" />
           </div>
-
           <div>
-            <h2 className="text-2xl font-bold text-white font-sans">
-              No Active Queue Pass
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-400 mt-2 max-w-md mx-auto">
-              You haven't joined a digital queue yet. Explore destinations to check crowd levels and reserve your entry slot with zero waiting.
-            </p>
+            <h2 className="text-2xl font-bold text-white font-sans">No Active Booking</h2>
+            <p className="text-xs sm:text-sm text-slate-400 mt-2 max-w-md mx-auto">Choose a destination and join its digital queue to get a QR pass.</p>
           </div>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-            <Link
-              to="/destinations"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-6 py-3 rounded-xl text-xs font-mono uppercase tracking-wider transition-colors"
-            >
-              <span>Explore Destinations</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-
-            <button
-              onClick={handleSimulateDefaultQueue}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 px-5 py-3 rounded-xl text-xs font-mono uppercase tracking-wider transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Simulate Sample Pass</span>
-            </button>
-          </div>
+          <Link to="/destinations" className="inline-flex items-center justify-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-6 py-3 rounded-xl text-xs font-mono uppercase tracking-wider">
+            <span>Explore Destinations</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
       )}
 
-      {/* Cancel Confirmation Modal */}
-      {showCancelModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+      {/* Past bookings */}
+      {history.length > 0 && (
+        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-slate-800 flex items-center gap-2 text-xs font-mono uppercase text-slate-400">
+            <History className="w-4 h-4 text-cyan-400" />
+            <span>Past bookings</span>
+          </div>
+          <ul className="divide-y divide-slate-800/70">
+            {history.map((b) => (
+              <li key={b.bookingId} className="px-5 py-3 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+                <span className="text-slate-300">{b.destinationName}</span>
+                <span className="text-slate-500">{b.bookingId} • {b.numberOfPeople} ppl • {formatTime(b.createdAt)}</span>
+                <QueueStatus status={b.status} size="sm" />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Cancel confirmation */}
+      {bookingToCancel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
           <div className="w-full max-w-md bg-slate-900 border border-rose-500/30 rounded-2xl p-6 shadow-2xl">
             <div className="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center justify-center mb-4">
               <AlertTriangle className="w-6 h-6" />
             </div>
-
-            <h3 className="text-lg font-bold text-white mb-1">
-              Cancel Active Queue Pass?
-            </h3>
-            <p className="text-xs text-slate-400 mb-6 leading-relaxed">
-              Are you sure you want to surrender your spot (#{activeQueue?.queueNumber}) for{' '}
-              <span className="text-white font-semibold">{activeQueue?.destinationName}</span>? Your place will immediately be reassigned to the next visitor in the FIFO queue.
+            <h3 className="text-lg font-bold text-white mb-1">Cancel this booking?</h3>
+            <p className="text-xs text-slate-400 mb-6">
+              You will lose position #{bookingToCancel.queuePosition} for {bookingToCancel.destinationName}. This cannot be undone.
             </p>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowCancelModal(false)}
-                className="flex-1 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-mono uppercase transition-colors"
-              >
-                Keep My Spot
-              </button>
-              <button
-                onClick={handleCancel}
-                className="flex-1 py-2.5 px-4 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl text-xs font-mono uppercase tracking-wider transition-colors shadow-lg shadow-rose-950"
-              >
-                Confirm Cancel
+            <div className="flex gap-3">
+              <button onClick={() => setBookingToCancel(null)} className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm">Keep Booking</button>
+              <button onClick={handleCancel} className="flex-1 py-2.5 bg-rose-500 hover:bg-rose-400 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-1.5">
+                <XCircle className="w-4 h-4" />
+                Cancel Booking
               </button>
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function Item({ label, value }) {
+  return (
+    <div>
+      <span className="text-slate-500 block text-[11px] uppercase">{label}</span>
+      <span className="text-white block mt-1">{value}</span>
     </div>
   );
 }

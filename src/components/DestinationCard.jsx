@@ -5,10 +5,12 @@ import CrowdBadge from './CrowdBadge';
 
 /**
  * DestinationCard component
- * Displays destination photo, crowd badge, wait time, queue depth, and action links.
+ * Destination from the dataset with its estimated crowd level, estimated wait
+ * and the number of people in the TourFlow queue.
  */
 export default function DestinationCard({ destination, onQuickJoin }) {
   if (!destination) return null;
+  const crowd = destination.crowd || {};
 
   return (
     <div className="group relative bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden hover:border-cyan-500/40 hover:shadow-xl hover:shadow-cyan-950/30 transition-all duration-300 flex flex-col">
@@ -24,25 +26,25 @@ export default function DestinationCard({ destination, onQuickJoin }) {
 
         {/* Top Badges */}
         <div className="absolute top-3 left-3 flex items-center gap-2">
-          <CrowdBadge level={destination.crowdLevel} size="sm" />
+          <CrowdBadge level={crowd.crowdLevel} size="sm" />
         </div>
 
-        {/* Coordinates micro-tag */}
+        {/* Category tag */}
         <div className="absolute top-3 right-3 bg-slate-950/75 backdrop-blur-md border border-slate-700/60 text-[10px] font-mono text-slate-300 px-2 py-0.5 rounded flex items-center gap-1">
           <Compass className="w-3 h-3 text-cyan-400" />
-          <span>{destination.coordinates}</span>
+          <span>{destination.category}</span>
         </div>
 
-        {/* Live Wait Pill on bottom of image */}
+        {/* Next slot & queue pills on bottom of image */}
         <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs font-mono">
           <span className="bg-slate-900/90 backdrop-blur-md text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-md flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-amber-400" />
-            <span>WAIT: {destination.estimatedWait}</span>
+            <span>{crowd.queueOpen === false ? 'QUEUE CLOSED' : `EST. WAIT ~${crowd.estimatedWaitMinutes ?? 0}m`}</span>
           </span>
 
           <span className="bg-slate-900/90 backdrop-blur-md text-cyan-300 border border-cyan-500/30 px-2.5 py-1 rounded-md flex items-center gap-1.5">
             <Users className="w-3.5 h-3.5 text-cyan-400" />
-            <span>QUEUE: #{destination.currentQueue}</span>
+            <span>{crowd.peopleWaiting ?? 0} IN QUEUE</span>
           </span>
         </div>
       </div>

@@ -1,70 +1,51 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { fetchMe, loginTourist, loginAdmin, registerUser, logoutUser, getToken, setToken } from '../services/api';
 
 const AuthContext = createContext();
 
+/**
+ * Real authentication against the backend.
+ * - The token is saved in localStorage so the login survives a page refresh.
+ * - On start-up the token is checked with GET /api/auth/me.
+ * - The user's role comes from the server; the backend checks it again on
+ *   every protected request, so changing it in the browser does nothing.
+ */
 export function AuthProvider({ children }) {
-  // Check localStorage for persisted mock session or default to a logged-in explorer
-  const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('tourflow_user');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return null;
-      }
-    }
-    // Default mock user for smooth testing
-    return {
-      name: 'Aditya Sharma',
-      email: 'aditya.explorer@tourflow.ai',
-      initials: 'AS',
-      role: 'Verified Tourist',
-      id: 'EXP-4921'
-    };
-  });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(Boolean(getToken()));
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('tourflow_user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('tourflow_user');
+    if (!getToken()) return;
+    fetchMe()
+      .then((data) => setUser(data.user))
+      .catch((err) => {
+        if (err.status === 401) setToken(null); // expired or invalid
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const startSession = ({ token, user: loggedInUser }) => {
+    setToken(token);
+    setUser(loggedInUser);
+    return loggedInUser;
+  };
+
+  const login = async (email, password) => startSession(await loginTourist({ email, password }));
+  const adminLogin = async (email, password) => startSession(await loginAdmin({ email, password }));
+  const register = async (name, email, password) => startSession(await registerUser({ name, email, password }));
+
+  const logout = async () => {
+    try {
+      await logoutUser();
+    } catch {
+      // token already invalid - still log out locally
     }
-  }, [user]);
-
-  const login = (email, password) => {
-    // Mock login authentication
-    const namePart = email.split('@')[0];
-    const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
-    const mockUser = {
-      name: formattedName || 'Explorer',
-      email: email,
-      initials: (formattedName.slice(0, 2) || 'EX').toUpperCase(),
-      role: 'Verified Tourist',
-      id: 'EXP-' + Math.floor(1000 + Math.random() * 9000)
-    };
-    setUser(mockUser);
-    return { success: true, user: mockUser };
-  };
-
-  const register = (name, email, password) => {
-    const initials = name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'EX';
-    const newUser = {
-      name,
-      email,
-      initials,
-      role: 'Verified Tourist',
-      id: 'EXP-' + Math.floor(1000 + Math.random() * 9000)
-    };
-    setUser(newUser);
-    return { success: true, user: newUser };
-  };
-
-  const logout = () => {
+    setToken(null);
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, adminLogin, register, logout, isAdmin: user?.role === 'admin' }}>
       {children}
     </AuthContext.Provider>
   );

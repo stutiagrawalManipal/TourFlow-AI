@@ -34,8 +34,10 @@ export default function Register() {
 
     if (!formData.password) {
       errs.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      errs.password = 'Password must be at least 6 characters';
+    } else if (formData.password.length < 8) {
+      errs.password = 'Password must be at least 8 characters';
+    } else if (!/[A-Za-z]/.test(formData.password) || !/\d/.test(formData.password)) {
+      errs.password = 'Password must contain letters and numbers';
     }
 
     if (!formData.confirmPassword) {
@@ -57,16 +59,26 @@ export default function Register() {
     }
   };
 
-  const handleSubmit = (e) => {
+  // POST /api/auth/register - the server validates again and always creates a tourist account
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
     setLoading(true);
-    setTimeout(() => {
-      register(formData.fullName, formData.email, formData.password);
+    try {
+      await register(formData.fullName.trim(), formData.email.trim(), formData.password);
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      const fields = err.fields || {};
+      setErrors({
+        fullName: fields.name,
+        email: fields.email,
+        password: fields.password,
+        general: err.message,
+      });
+    } finally {
       setLoading(false);
-      navigate('/dashboard');
-    }, 400);
+    }
   };
 
   return (
@@ -88,6 +100,12 @@ export default function Register() {
               Join TourFlow AI for smart queue passes and crowd intelligence
             </p>
           </div>
+
+          {errors.general && (
+            <div className="mb-6 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-300">
+              {errors.general}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Full Name */}

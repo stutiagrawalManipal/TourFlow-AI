@@ -32,7 +32,7 @@ export default function Dashboard() {
   // Load destinations from the backend, most popular first
   useEffect(() => {
     fetchDestinations()
-      .then((data) => setDestinations([...data].sort((a, b) => b.popularityScore - a.popularityScore)))
+      .then((data) => setDestinations([...data].sort((a, b) => (b.popularityScore || 0) - (a.popularityScore || 0))))
       .catch(() => setDestinations([]));
   }, []);
   const navigate = useNavigate();
@@ -46,7 +46,7 @@ export default function Dashboard() {
     }
   };
 
-  // Filter destinations for the live crowd intelligence feed
+  // Filter destinations for the crowd overview
   const filteredDestinations = destinations.filter((dest) => {
     const matchesSearch =
       dest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -54,10 +54,12 @@ export default function Dashboard() {
 
     if (!matchesSearch) return false;
     if (crowdFilter === 'ALL') return true;
-    return dest.crowdLevel === crowdFilter;
+    return dest.crowd?.crowdLevel === crowdFilter;
   }).slice(0, 6);
 
   const userName = user ? user.name.split(' ')[0] : 'Explorer';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
@@ -71,10 +73,10 @@ export default function Dashboard() {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 text-[11px] font-mono tracking-wider">
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-              <span>COMMAND DASHBOARD // LIVE</span>
+              <span>TOURIST DASHBOARD</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-black text-white font-sans tracking-tight">
-              Good morning, {userName}.
+              {greeting}, {userName}.
             </h1>
             <p className="text-sm text-slate-300 font-medium">
               Plan your visit. Skip the uncertainty.
@@ -121,7 +123,11 @@ export default function Dashboard() {
                 {activeQueue.destinationName}
               </h3>
               <p className="text-xs text-slate-300">
-                Position: <span className="text-amber-300 font-mono font-bold">#{activeQueue.positionAhead} ahead</span> • Est. Wait: <span className="text-emerald-300 font-mono font-bold">{activeQueue.estimatedWait}</span>
+                {activeQueue.status === 'WAITING' ? (
+                  <>Position <span className="text-amber-300 font-mono font-bold">{activeQueue.queueNumber}</span> • {activeQueue.peopleAhead} people ahead • Est. wait <span className="text-emerald-300 font-mono font-bold">~{activeQueue.estimatedWaitMinutes} min</span></>
+                ) : (
+                  <span className="text-emerald-300">Checked in</span>
+                )}
               </p>
             </div>
           </div>
@@ -149,47 +155,47 @@ export default function Dashboard() {
 
         <StatCard
           title="Estimated Wait"
-          value={activeQueue ? activeQueue.estimatedWait : '0 min'}
-          subtitle={activeQueue ? `${activeQueue.positionAhead} people ahead` : 'Instant access ready'}
+          value={activeQueue ? `~${activeQueue.estimatedWaitMinutes} min` : '-'}
+          subtitle={activeQueue ? `${activeQueue.peopleAhead} people ahead (estimate)` : 'No booking yet'}
           icon={Clock}
           accent="amber"
-          badge="LIVE"
+          badge="FROM SERVER"
         />
 
         <StatCard
-          title="Today's Visits"
-          value="24,870"
-          subtitle="Monitored across 8 heritage sites"
+          title="People in Queues"
+          value={destinations.reduce((total, d) => total + (d.crowd?.peopleWaiting || 0), 0)}
+          subtitle="Across all destinations"
           icon={Users}
           accent="emerald"
-          badge="+12% PEAK"
+          badge="NOW"
         />
 
         <StatCard
-          title="Saved Places"
-          value="4"
-          subtitle="Agra, Jaipur, Delhi, Hampi"
+          title="Places Covered"
+          value={destinations.length}
+          subtitle="Destinations in the dataset"
           icon={Bookmark}
           accent="indigo"
-          badge="WISHLIST"
+          badge="INDIA"
         />
       </div>
 
-      {/* Live Crowd Intelligence Section */}
+      {/* Crowd Overview Section */}
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
               <span className="text-[11px] font-mono tracking-widest uppercase text-cyan-400 font-bold">
-                LIVE CROWD INTELLIGENCE
+                CROWD OVERVIEW (ESTIMATES)
               </span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold text-white font-sans">
-              Monitored Tourist Destinations
+              Popular Destinations
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              Real-time crowd telemetry, waiting intervals, and digital queue depths across iconic Indian landmarks.
+              The most popular destinations with estimated crowd levels (season data + TourFlow queue). Not live sensor data.
             </p>
           </div>
 
@@ -248,10 +254,10 @@ export default function Dashboard() {
           </div>
           <div>
             <h3 className="text-lg font-bold text-white">
-              Need Historical Insights or Route Advice?
+              Have a quick question?
             </h3>
             <p className="text-xs text-slate-400 mt-0.5 max-w-xl">
-              Launch the TourFlow AI Companion for architectural history, camera permissions, best visiting hours, and queue avoidance strategies.
+              The AI Tourist Guide answers questions about any destination using the tourism dataset.
             </p>
           </div>
         </div>

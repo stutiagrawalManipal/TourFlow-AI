@@ -4,4 +4,9 @@ dist/
 .env
 .env.local
 .DS_Store
+
+# backend secrets and runtime data
+backend/.env
+backend/data/tourflow-db.json
+backend/data/*.tmp
 backend/data/bookings.json

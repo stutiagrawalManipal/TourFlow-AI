@@ -13,97 +13,96 @@ import {
   ShieldCheck,
   ChevronDown
 } from 'lucide-react';
-import { DESTINATIONS } from '../data/destinations';
-import { SUGGESTED_QUESTIONS, getAIResponse } from '../data/aiResponses';
+import { fetchDestinations, fetchGuideQuestions, askGuide } from '../services/api';
+
+function botMessage(text, source) {
+  return { id: Date.now() + Math.random(), sender: 'ai', text, source, timestamp: 'Just now' };
+}
+
+const SOURCE_LABELS = { dataset: 'From the tourism dataset', estimate: 'Estimate (no live sensors)', none: 'Not in the dataset' };
 
 export default function AIGuide() {
   const [searchParams, setSearchParams] = useSearchParams();
   const destQuery = searchParams.get('dest');
 
-  // Select destination from URL or default to Taj Mahal
-  const [selectedDestId, setSelectedDestId] = useState(
-    destQuery && DESTINATIONS.some(d => d.id === destQuery)
-      ? destQuery
-      : DESTINATIONS[0].id
-  );
-
-  const selectedDestination = DESTINATIONS.find(d => d.id === selectedDestId) || DESTINATIONS[0];
+  const [destinations, setDestinations] = useState([]);
+  const [suggestedQuestions, setSuggestedQuestions] = useState([]);
+  const [selectedDestId, setSelectedDestId] = useState(destQuery || '');
+  const [loadError, setLoadError] = useState('');
 
   // Chat conversation state
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      sender: 'ai',
-      text: `Hello! I am your TourFlow AI Companion for ${selectedDestination.name}. Ask me anything about its Mughal-period architecture, visiting hours, crowd mitigation tips, or hidden details!`,
-      timestamp: 'Just now'
-    }
-  ]);
+  const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const chatBottomRef = useRef(null);
+
+  const selectedDestination = destinations.find((d) => d.id === selectedDestId) || destinations[0];
+
+  // Load destinations (sorted by name) and suggested questions from the backend
+  useEffect(() => {
+    Promise.all([fetchDestinations(), fetchGuideQuestions()])
+      .then(([list, questions]) => {
+        setDestinations([...list].sort((a, b) => a.name.localeCompare(b.name)));
+        setSuggestedQuestions(questions);
+      })
+      .catch((err) => setLoadError(err.message));
+  }, []);
+
+  // Greeting whenever the selected destination changes
+  useEffect(() => {
+    if (selectedDestination) {
+      setMessages([
+        botMessage(`Hi! Ask me about ${selectedDestination.name}: attractions, best time to visit, crowd, itinerary, budget, safety, permits, food or how to get there.`),
+      ]);
+    }
+  }, [selectedDestination?.id]);
 
   // Auto scroll to bottom
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  // Handle destination switcher
   const handleDestinationChange = (e) => {
-    const newId = e.target.value;
-    setSelectedDestId(newId);
-    setSearchParams({ dest: newId });
-
-    const newDest = DESTINATIONS.find(d => d.id === newId);
-    setMessages([
-      {
-        id: Date.now(),
-        sender: 'ai',
-        text: `Switched destination to ${newDest?.name}. I am ready to guide you through this historic location in ${newDest?.location}. What would you like to explore first?`,
-        timestamp: 'Just now'
-      }
-    ]);
+    setSelectedDestId(e.target.value);
+    setSearchParams({ dest: e.target.value });
   };
 
-  // Send message flow
-  const handleSendMessage = (textToSend) => {
+  // POST /api/guide/ask - answers come only from the dataset on the server
+  const handleSendMessage = async (textToSend) => {
     const text = (textToSend || inputText).trim();
-    if (!text) return;
+    if (!text || isTyping) return;
 
-    const userMsg = {
-      id: Date.now(),
-      sender: 'user',
-      text: text,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    setMessages(prev => [...prev, userMsg]);
+    setMessages((prev) => [
+      ...prev,
+      { id: Date.now(), sender: 'user', text, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
+    ]);
     setInputText('');
     setIsTyping(true);
-
-    // Simulate intelligent AI thinking delay
-    setTimeout(() => {
-      const responseText = getAIResponse(selectedDestId, text);
-      const aiMsg = {
-        id: Date.now() + 1,
-        sender: 'ai',
-        text: responseText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages(prev => [...prev, aiMsg]);
+    try {
+      const reply = await askGuide(selectedDestination.id, text);
+      setMessages((prev) => [...prev, botMessage(reply.answer, reply.source)]);
+    } catch (err) {
+      setMessages((prev) => [...prev, botMessage(`Sorry, the guide is unavailable right now (${err.message}).`, 'none')]);
+    } finally {
       setIsTyping(false);
-    }, 600);
+    }
   };
 
   const handleResetChat = () => {
-    setMessages([
-      {
-        id: Date.now(),
-        sender: 'ai',
-        text: `Conversation refreshed. I'm ready to answer any questions regarding ${selectedDestination.name}.`,
-        timestamp: 'Just now'
-      }
-    ]);
+    setMessages([botMessage(`Chat cleared. Ask me anything about ${selectedDestination.name}.`)]);
   };
+
+  if (loadError) {
+    return (
+      <div className="max-w-lg mx-auto my-20 bg-rose-500/10 border border-rose-500/30 rounded-2xl p-6 text-center text-xs font-mono text-rose-300">
+        {loadError}
+      </div>
+    );
+  }
+
+  if (!selectedDestination) {
+    return <p className="text-center text-xs font-mono text-slate-400 py-20">Loading guide...</p>;
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -113,21 +112,21 @@ export default function AIGuide() {
           <div className="flex items-center gap-2 mb-1">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
             <span className="text-[11px] font-mono tracking-widest uppercase text-cyan-400 font-semibold">
-              CONTEXTUAL COMPANION ENGINE
+              DATASET-GROUNDED GUIDE
             </span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-white font-sans tracking-tight">
             TourFlow AI Guide
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Your intelligent companion for every destination.
+            Answers come only from the TourFlow tourism dataset. No external AI service is used, so it works offline.
           </p>
         </div>
 
         {/* Prototype Disclaimer Badge */}
         <div className="flex items-center gap-2 font-mono text-[11px] bg-slate-900 border border-slate-800 text-slate-400 px-3 py-1.5 rounded-xl self-start md:self-auto">
           <ShieldCheck className="w-4 h-4 text-cyan-400" />
-          <span>FRONTEND AI PROTOTYPE • GROUNDED RESPONSES</span>
+          <span>OFFLINE • NO API KEY NEEDED</span>
         </div>
       </div>
 
@@ -138,15 +137,15 @@ export default function AIGuide() {
           {/* Destination Selector Card */}
           <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 backdrop-blur-md">
             <label className="block text-xs font-mono uppercase text-slate-400 mb-2">
-              Select Active Destination:
+              Choose a destination:
             </label>
             <div className="relative">
               <select
-                value={selectedDestId}
+                value={selectedDestination.id}
                 onChange={handleDestinationChange}
                 className="w-full bg-slate-950 border border-slate-700/80 rounded-xl py-2.5 pl-3 pr-10 text-xs font-semibold text-white focus:outline-none focus:border-cyan-400 cursor-pointer appearance-none"
               >
-                {DESTINATIONS.map((d) => (
+                {destinations.map((d) => (
                   <option key={d.id} value={d.id} className="bg-slate-900 text-slate-100">
                     {d.name} ({d.state})
                   </option>
@@ -181,8 +180,8 @@ export default function AIGuide() {
               </div>
 
               <div className="pt-2 flex items-center justify-between text-[11px] font-mono text-slate-400">
-                <span>Best time:</span>
-                <span className="text-amber-300 truncate max-w-[180px]">{selectedDestination.bestTime}</span>
+                <span>Best seasons:</span>
+                <span className="text-amber-300 truncate max-w-[180px]">{selectedDestination.bestSeasons.join(', ') || 'Not listed'}</span>
               </div>
             </div>
           </div>
@@ -194,7 +193,7 @@ export default function AIGuide() {
               <span>Suggested Questions:</span>
             </h4>
             <div className="space-y-2">
-              {SUGGESTED_QUESTIONS.map((q, idx) => (
+              {suggestedQuestions.map((q, idx) => (
                 <button
                   key={idx}
                   onClick={() => handleSendMessage(q)}
@@ -263,6 +262,7 @@ export default function AIGuide() {
                       }`}
                     >
                       {msg.timestamp}
+                      {isAI && msg.source && ` • ${SOURCE_LABELS[msg.source] || ''}`}
                     </span>
                   </div>
 
@@ -285,7 +285,7 @@ export default function AIGuide() {
                   <span className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce" />
                   <span className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce delay-100" />
                   <span className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce delay-200" />
-                  <span className="ml-1 text-[11px] text-slate-400">Consulting heritage database...</span>
+                  <span className="ml-1 text-[11px] text-slate-400">Looking that up...</span>
                 </div>
               </div>
             )}

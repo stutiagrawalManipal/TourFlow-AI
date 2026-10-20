@@ -1,32 +1,40 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Compass, Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
-  const [email, setEmail] = useState('aditya.explorer@tourflow.ai');
-  const [password, setPassword] = useState('tourist123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleSubmit = (e) => {
+  // POST /api/auth/login - credentials are checked by the server
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
+    if (!email.trim() || !password) {
       setError('Please fill in both email and password.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) {
+      setError('Please enter a valid email address.');
       return;
     }
     setError('');
     setLoading(true);
-
-    setTimeout(() => {
-      login(email, password);
+    try {
+      await login(email.trim(), password);
+      navigate(location.state?.from || '/dashboard', { replace: true });
+    } catch (err) {
+      setError(err.message);
+    } finally {
       setLoading(false);
-      navigate('/dashboard');
-    }, 400);
+    }
   };
 
   return (
@@ -46,7 +54,7 @@ export default function Login() {
               Welcome Back, Explorer
             </h1>
             <p className="text-xs text-slate-400 mt-1">
-              Enter your TourFlow command center credentials
+              Log in with your TourFlow tourist account
             </p>
           </div>
 
@@ -81,9 +89,7 @@ export default function Login() {
                 <label className="block text-xs font-mono uppercase text-slate-400">
                   Password
                 </label>
-                <span className="text-[11px] font-mono text-cyan-400/80 hover:text-cyan-300 cursor-pointer">
-                  Forgot?
-                </span>
+
               </div>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -105,10 +111,9 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Mock note */}
             <div className="p-3 bg-slate-950/40 rounded-xl border border-slate-800 text-[11px] text-slate-400 flex items-center gap-2">
               <ShieldCheck className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
-              <span>Demo mode active: Pre-filled credentials allow instant access.</span>
+              <span>Forgot your password? Password reset is not available yet - please register a new account.</span>
             </div>
 
             {/* Submit Button */}
@@ -130,10 +135,14 @@ export default function Login() {
 
           {/* Footer Register Link */}
           <div className="mt-8 text-center text-xs text-slate-400 pt-6 border-t border-slate-800">
-            <span>Don't have a Tourist ID? </span>
+            <span>Don't have an account? </span>
             <Link to="/register" className="text-cyan-400 hover:underline font-semibold">
               Register New Account
             </Link>
+            <p className="mt-3">
+              Staff member?{' '}
+              <Link to="/admin/login" className="text-amber-400 hover:underline font-semibold">Admin login</Link>
+            </p>
           </div>
         </div>
       </div>

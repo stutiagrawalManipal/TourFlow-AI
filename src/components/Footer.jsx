@@ -21,17 +21,17 @@ export default function Footer() {
               </span>
             </div>
             <p className="text-slate-400 text-xs max-w-md leading-relaxed">
-              "Smart Tourism. Less Waiting." Intelligent tourist management platform engineered to eliminate physical queues, model crowd dynamics, and deliver QR verification with contextual AI assistance.
+              "Smart Tourism. Less Waiting." A digital FIFO queue and crowd-estimate system for tourist destinations across India.
             </p>
             <div className="flex items-center gap-3 font-mono text-[11px] text-slate-500 pt-1">
               <span className="flex items-center gap-1">
                 <Activity className="w-3.5 h-3.5 text-emerald-400" />
-                <span>FIFO ENGINE: OPERATIONAL</span>
+                <span>100 DESTINATIONS</span>
               </span>
               <span>•</span>
               <span className="flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-                <span>QR VERIFICATION: READY</span>
+                <span>QR PASS + STAFF LOOKUP</span>
               </span>
             </div>
           </div>
@@ -49,12 +49,12 @@ export default function Footer() {
               </li>
               <li>
                 <Link to="/destinations" className="hover:text-cyan-400 transition-colors">
-                  Heritage Destinations
+                  Explore Destinations
                 </Link>
               </li>
               <li>
                 <Link to="/queue" className="hover:text-cyan-400 transition-colors">
-                  Live Queue & QR Pass
+                  My Queue
                 </Link>
               </li>
               <li>
@@ -73,8 +73,8 @@ export default function Footer() {
             <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-lg font-mono text-[10px] text-slate-400 space-y-1">
               <p className="text-cyan-400 font-bold">SOFTWARE ENGINEERING CAPSTONE</p>
               <p>Frontend: React + Vite + Tailwind</p>
-              <p>State: Context FIFO Queue Manager</p>
-              <p>Simulation: Live Crowd Telemetry</p>
+              <p>Backend: Node.js + Express REST API</p>
+              <p>Data: tourism dataset + JSON database</p>
             </div>
           </div>
         </div>
@@ -82,9 +82,9 @@ export default function Footer() {
         <div className="pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono text-slate-500">
           <p>© {new Date().getFullYear()} TourFlow AI. College Software Engineering Project.</p>
           <div className="flex items-center gap-4">
-            <span className="hover:text-slate-400">Coordinates: 20.5937° N, 78.9629° E</span>
+            <span className="hover:text-slate-400">India: 20.5937° N, 78.9629° E</span>
             <span>•</span>
-            <span className="hover:text-slate-400">Strict Max 4 Visitors / Pass</span>
+            <span className="hover:text-slate-400">Max 4 Visitors / Booking</span>
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Compass,
@@ -16,70 +16,49 @@ import {
   Layers
 } from 'lucide-react';
 import CrowdBadge from '../components/CrowdBadge';
+import { fetchDestinations } from '../services/api';
 
 export default function Landing() {
-  // Live destination panel interactive toggle for demo purposes
+  // Hero panel shows the most popular destinations from the backend
+  const [destinations, setDestinations] = useState([]);
   const [selectedDemoIndex, setSelectedDemoIndex] = useState(0);
 
-  const demoSites = [
-    {
-      name: 'Taj Mahal Central Dome',
-      city: 'Agra, Uttar Pradesh',
-      coordinates: '27.1751° N, 78.0421° E',
-      crowdLevel: 'HIGH',
-      crowdPercent: 88,
-      estimatedWait: '35 min',
-      activeQueue: 42,
-      visitorCount: '4,890',
-      queueCapacity: 80,
-      sensorStatus: '14/16 Active Sensors',
-      nextGateCall: 'Ticket #139 (2 mins)',
-    },
-    {
-      name: 'Amer Fort Sun Gate',
-      city: 'Jaipur, Rajasthan',
-      coordinates: '26.9855° N, 75.8513° E',
-      crowdLevel: 'MODERATE',
-      crowdPercent: 58,
-      estimatedWait: '18 min',
-      activeQueue: 24,
-      visitorCount: '2,650',
-      queueCapacity: 75,
-      sensorStatus: '12/12 Active Sensors',
-      nextGateCall: 'Ticket #95 (4 mins)',
-    }
-  ];
+  useEffect(() => {
+    fetchDestinations()
+      .then((data) => setDestinations([...data].sort((a, b) => (b.popularityScore || 0) - (a.popularityScore || 0)).slice(0, 10)))
+      .catch(() => setDestinations([]));
+  }, []);
 
-  const currentDemo = demoSites[selectedDemoIndex];
+  const currentDemo = destinations[selectedDemoIndex];
 
   const features = [
     {
       title: 'Smart Queue Management',
-      description: 'Digital FIFO (First-In, First-Out) queuing eliminates agonizing physical queues and lets tourists explore freely until their slot is called.',
+      description: 'Join a digital first-in, first-out queue instead of standing in a physical line. Up to 4 visitors per booking, positions assigned by the server.',
       icon: Users,
       accent: 'cyan',
-      tag: 'FIFO ENGINE'
+      tag: 'FIFO QUEUE'
     },
     {
-      title: 'Real-Time Crowd Information',
-      description: 'Understand current crowd density, peak visiting intervals, and live capacity percentages across heritage locations before you arrive.',
+      title: 'Crowd Information',
+      description: 'Estimated crowd level and waiting time from seasonal dataset information and the TourFlow queue. Clearly labelled as estimates - no live sensors.',
       icon: Activity,
       accent: 'amber',
-      tag: 'SENSOR TELEMETRY'
+      tag: 'ESTIMATES'
     },
     {
       title: 'QR Queue Pass',
-      description: 'Instant cryptographically formatted mobile pass with ticket number, passenger allocation, and barcode for smooth gate verification.',
+      description: 'A QR queue pass with your booking ID and pass code. Staff look it up in the admin portal to check your group in and out.',
       icon: QrCode,
       accent: 'emerald',
       tag: 'DIGITAL PASS'
     },
     {
       title: 'AI Tourist Guide',
-      description: 'Intelligent contextual assistant grounded in architectural history, local legends, best photo angles, and queue navigation tips.',
+      description: 'Ask about attractions, seasons, itinerary, budget, safety, permits and food. Answers come only from the tourism dataset and work offline.',
       icon: Sparkles,
       accent: 'indigo',
-      tag: 'AI COMPANION'
+      tag: 'DATASET GUIDE'
     }
   ];
 
@@ -87,31 +66,31 @@ export default function Landing() {
     {
       step: '01',
       title: 'Discover',
-      desc: 'Browse top cultural destinations & monuments.',
+      desc: 'Browse tourist destinations across India.',
       icon: Compass
     },
     {
       step: '02',
       title: 'Check Crowd',
-      desc: 'Review live capacity, peak hours & wait times.',
+      desc: 'See the estimated crowd level and waiting time.',
       icon: Activity
     },
     {
       step: '03',
       title: 'Join Queue',
-      desc: 'Pick your group size (up to 4 visitors per booking).',
+      desc: 'Pick your group size (up to 4 per booking).',
       icon: Users
     },
     {
       step: '04',
       title: 'Get QR Pass',
-      desc: 'Receive your digital verification ticket & ETA.',
+      desc: 'Get your booking ID, position and QR pass.',
       icon: QrCode
     },
     {
       step: '05',
       title: 'Visit',
-      desc: 'Arrive at your assigned gate and scan to enter.',
+      desc: 'Show the pass; staff check you in and out.',
       icon: CheckCircle2
     }
   ];
@@ -125,7 +104,7 @@ export default function Landing() {
           <div className="lg:col-span-6 space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-mono tracking-wider">
               <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-              <span>INTELLIGENT TOURIST COMMAND PLATFORM</span>
+              <span>TOURIST QUEUE & CROWD MANAGEMENT</span>
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white font-sans leading-[1.1]">
@@ -136,7 +115,7 @@ export default function Landing() {
             </h1>
 
             <p className="text-base sm:text-lg text-slate-300 max-w-xl leading-relaxed">
-              TourFlow AI helps tourists discover, understand, and navigate busy destinations with intelligent digital FIFO queues and real-time crowd management. Skip uncertainty, preserve your time, and experience heritage at its finest.
+              TourFlow helps tourists explore destinations across India, check estimated crowd levels and waiting times, and join a fair digital FIFO queue with a QR pass instead of standing in a physical line.
             </p>
 
             <div className="flex flex-wrap items-center gap-4 pt-2">
@@ -168,22 +147,26 @@ export default function Landing() {
                 <p className="text-[11px] text-slate-400">Visitors / Ticket</p>
               </div>
               <div>
-                <p className="text-xl font-bold font-mono text-emerald-300">100%</p>
-                <p className="text-[11px] text-slate-400">Digital QR Entry</p>
+                <p className="text-xl font-bold font-mono text-emerald-300">QR</p>
+                <p className="text-[11px] text-slate-400">Queue Pass</p>
               </div>
             </div>
           </div>
 
-          {/* Right Column: Custom Live Destination Intelligence Visual Panel */}
+          {/* Right Column: destination snapshot from the backend */}
           <div className="lg:col-span-6">
+            {!currentDemo ? (
+              <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-10 text-center text-xs font-mono text-slate-400">
+                Start the backend to see destination data here.
+              </div>
+            ) : (
             <div className="relative bg-slate-900/90 border border-cyan-500/30 rounded-3xl p-6 shadow-2xl shadow-cyan-950/40 backdrop-blur-xl">
-              {/* Radar and grid ambient lines */}
               <div className="absolute top-4 right-4 flex items-center gap-2">
                 <button
-                  onClick={() => setSelectedDemoIndex(selectedDemoIndex === 0 ? 1 : 0)}
+                  onClick={() => setSelectedDemoIndex((selectedDemoIndex + 1) % destinations.length)}
                   className="text-[10px] font-mono text-cyan-400 bg-cyan-950/60 border border-cyan-500/30 px-2 py-1 rounded hover:bg-cyan-900/50 transition-colors"
                 >
-                  SWITCH MONUMENT ⇄
+                  NEXT PLACE ⇄
                 </button>
               </div>
 
@@ -191,99 +174,90 @@ export default function Landing() {
               <div className="flex items-start justify-between border-b border-slate-800/90 pb-4 mb-5">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                    <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
                     <span className="text-[11px] font-mono uppercase tracking-widest text-cyan-400 font-semibold">
-                      LIVE DESTINATION INTELLIGENCE
+                      POPULAR DESTINATION
                     </span>
                   </div>
-                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2 pr-24">
                     {currentDemo.name}
                   </h3>
                   <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
                     <MapPin className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>{currentDemo.city}</span>
-                    <span className="font-mono text-slate-500">[{currentDemo.coordinates}]</span>
+                    <span>{currentDemo.location}</span>
                   </p>
                 </div>
               </div>
 
-              {/* Real-Time Telemetry Grid */}
+              {/* Queue numbers */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
                 <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800">
                   <span className="text-[10px] font-mono uppercase text-slate-400 block">Crowd Level</span>
                   <div className="mt-1">
-                    <CrowdBadge level={currentDemo.crowdLevel} size="sm" />
+                    <CrowdBadge level={currentDemo.crowd.crowdLevel} size="sm" />
                   </div>
                 </div>
 
                 <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800">
-                  <span className="text-[10px] font-mono uppercase text-slate-400 block">Est. Waiting</span>
+                  <span className="text-[10px] font-mono uppercase text-slate-400 block">Est. Wait</span>
                   <p className="text-base font-bold font-mono text-amber-300 mt-0.5">
-                    {currentDemo.estimatedWait}
+                    ~{currentDemo.crowd.estimatedWaitMinutes} min
                   </p>
                 </div>
 
                 <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800">
-                  <span className="text-[10px] font-mono uppercase text-slate-400 block">Active Queue</span>
+                  <span className="text-[10px] font-mono uppercase text-slate-400 block">In Queue</span>
                   <p className="text-base font-bold font-mono text-cyan-300 mt-0.5">
-                    #{currentDemo.activeQueue}
+                    {currentDemo.crowd.peopleWaiting}
                   </p>
                 </div>
 
                 <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800">
-                  <span className="text-[10px] font-mono uppercase text-slate-400 block">Today's Total</span>
+                  <span className="text-[10px] font-mono uppercase text-slate-400 block">Checked In</span>
                   <p className="text-base font-bold font-mono text-white mt-0.5">
-                    {currentDemo.visitorCount}
+                    {currentDemo.crowd.peopleInside}
                   </p>
                 </div>
               </div>
 
-              {/* Interactive Visual Queue Progress Simulation */}
+              {/* Current slot occupancy */}
               <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800/90 mb-5 space-y-3">
                 <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="text-slate-400">Queue Capacity Saturation</span>
-                  <span className="text-cyan-400 font-bold">{currentDemo.crowdPercent}% Capacity</span>
+                  <span className="text-slate-400">Queue vs 1-hour entry capacity</span>
+                  <span className="text-cyan-400 font-bold">{currentDemo.crowd.queueLoadPercent}%</span>
                 </div>
 
-                {/* Meter Bar */}
                 <div className="w-full bg-slate-900 rounded-full h-2.5 overflow-hidden p-0.5 border border-slate-800">
                   <div
                     className={`h-full rounded-full transition-all duration-700 ${
-                      currentDemo.crowdPercent > 75
+                      currentDemo.crowd.queueLoadPercent > 75
                         ? 'bg-gradient-to-r from-cyan-500 via-amber-500 to-rose-500'
                         : 'bg-gradient-to-r from-cyan-500 to-emerald-400'
                     }`}
-                    style={{ width: `${currentDemo.crowdPercent}%` }}
+                    style={{ width: `${currentDemo.crowd.queueLoadPercent}%` }}
                   />
                 </div>
 
                 <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 pt-1">
-                  <span>Capacity: {currentDemo.queueCapacity} slots/interval</span>
-                  <span className="text-amber-300 font-semibold">{currentDemo.nextGateCall}</span>
+                  <span>Season now: {currentDemo.crowd.season}</span>
+                  <span className="text-amber-300 font-semibold">Popularity {currentDemo.popularityScore}/10</span>
                 </div>
               </div>
 
-              {/* Map Route / Spatial Node Graphic Mock */}
-              <div className="p-3 bg-slate-950/50 rounded-xl border border-slate-800/80 flex items-center justify-between text-xs font-mono">
-                <div className="flex items-center gap-2 text-slate-300">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Gate Security Status: Online</span>
-                </div>
-                <div className="text-[11px] text-cyan-400">
-                  Sensor Telemetry: {currentDemo.sensorStatus}
-                </div>
+              <div className="p-3 bg-slate-950/50 rounded-xl border border-slate-800/80 text-[11px] font-mono text-slate-400">
+                Estimate from the dataset season + TourFlow queue via the backend API. No live sensors.
               </div>
 
-              {/* Action Button inside panel */}
               <div className="mt-5 pt-4 border-t border-slate-800 flex items-center gap-3">
                 <Link
-                  to="/destinations/taj-mahal"
+                  to={`/destinations/${currentDemo.id}`}
                   className="w-full py-2.5 bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 rounded-xl text-xs font-mono uppercase tracking-wider text-center font-bold transition-all"
                 >
-                  Inspect Full Telemetry & Join Queue →
+                  View Details & Join Queue →
                 </Link>
               </div>
             </div>
+            )}
           </div>
         </div>
       </section>
@@ -295,10 +269,10 @@ export default function Landing() {
             <span>CORE ARCHITECTURE</span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-black text-white font-sans tracking-tight">
-            Intelligent Crowd & Queue Architecture
+            Crowd & Queue Features
           </h2>
           <p className="text-sm text-slate-400 mt-2">
-            Engineered specifically to solve peak tourist bottlenecks at national heritage landmarks.
+            Built for peak-hour bottlenecks at busy temples, ghats and monuments.
           </p>
         </div>
 

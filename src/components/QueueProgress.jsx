@@ -16,28 +16,28 @@ export default function QueueProgress({
   const steps = [
     {
       label: 'YOU',
-      subtext: 'Ticket Holder',
+      subtext: 'Booking Holder',
       icon: User,
       accent: 'border-cyan-400 text-cyan-400 bg-cyan-950/60',
       active: true,
     },
     {
       label: queueNumber,
-      subtext: 'Assigned Pass',
+      subtext: 'Queue Position',
       icon: Hash,
       accent: 'border-cyan-400 text-cyan-300 bg-cyan-950/60 font-mono font-bold',
       active: true,
     },
     {
       label: `${positionAhead} AHEAD`,
-      subtext: 'Live FIFO Queue',
+      subtext: 'People Ahead',
       icon: Users,
       accent: 'border-amber-400 text-amber-300 bg-amber-950/40 font-mono',
       active: true,
     },
     {
       label: estimatedWait,
-      subtext: 'Est. Gate Call',
+      subtext: 'Est. Wait',
       icon: Clock,
       accent: 'border-emerald-400 text-emerald-300 bg-emerald-950/40 font-mono',
       active: true,
@@ -53,7 +53,7 @@ export default function QueueProgress({
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
           <span className="text-xs font-mono tracking-widest text-cyan-400 uppercase font-semibold">
-            Real-Time Queue Telemetry
+            Queue Progress
           </span>
         </div>
         <span className="text-[11px] font-mono text-slate-400 bg-slate-800 px-2.5 py-0.5 rounded border border-slate-700">
