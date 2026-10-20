@@ -1,0 +1,14 @@
+{
+  "name": "tourflow-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "TourFlow AI backend - destinations and digital FIFO queue",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
