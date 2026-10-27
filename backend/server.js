@@ -1,18 +1,19 @@
+import { config } from './config/env.js'; // loads backend/.env first
 import express from 'express';
+import { existsSync } from 'fs';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import cors from 'cors';
-
-// Keep these import paths consistent with your existing project.
-import config from './config.js';
-import { securityHeaders, requireCsrfHeader } from './middleware/security.js';
-
-import authRoutes from './routes/auth.js';
-import destinationRoutes from './routes/destinations.js';
-import queueRoutes from './routes/queue.js';
-import adminRoutes from './routes/admin.js';
-import guideRoutes from './routes/guide.js';
-
+import authRoutes from './routes/authRoutes.js';
+import destinationRoutes from './routes/destinationRoutes.js';
+import queueRoutes from './routes/queueRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import guideRoutes from './routes/guideRoutes.js';
+import { ensureAdminFromEnv } from './services/authService.js';
 import { migrate } from './db/migrate.js';
-import { ensureAdminFromEnv } from './services/admin.js';
+import { pool } from './db/pool.js';
+import { securityHeaders, requireCsrfHeader } from './middleware/security.js';
+import { sendError } from './utils/asyncHandler.js';
 
 const app = express();
 
@@ -22,13 +23,12 @@ if (config.trustProxy) {
   app.set('trust proxy', config.trustProxy);
 }
 
-// Allow the deployed Vercel frontend to access the Render backend.
+// Allow the deployed Vercel frontend to access the Render API.
 const allowedOrigins = [
-  'https://tour-flow-ai.vercel.app',
   'https://tour-flow-5cfqj0w00-stutis-projects-0e92c8c2.vercel.app',
+  // Add your stable Vercel production domain here if different.
 ];
 
-// CORS must run before security middleware and API routes.
 app.use(
   cors({
     origin(origin, callback) {
@@ -37,79 +37,94 @@ app.use(
         return callback(null, true);
       }
 
-      return callback(new Error(`Origin not allowed by CORS: ${origin}`));
+      return callback(new Error('Origin not allowed by CORS'));
     },
     credentials: true,
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'X-Requested-With',
-      'X-CSRF-Token',
-    ],
+    allowedHeaders: ['Content-Type', 'X-Requested-With'],
   })
 );
 
-// Existing security middleware.
 app.use(securityHeaders);
 app.use(express.json({ limit: '50kb' }));
 app.use('/api', requireCsrfHeader);
 
-// API routes.
+app.get('/api/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', database: 'ok' });
+  } catch {
+    res.status(503).json({ status: 'error', database: 'unreachable' });
+  }
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/destinations', destinationRoutes);
 app.use('/api/queue', queueRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/guide', guideRoutes);
 
-// Health check.
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'TourFlow AI backend',
-  });
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: `Route ${req.method} ${req.originalUrl} not found` });
 });
 
-// Handle unknown routes.
-app.use((req, res) => {
-  res.status(404).json({
-    error: 'Route not found',
-    path: req.path,
-  });
-});
-
-// Error handler.
-app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-
-  if (res.headersSent) {
-    return next(err);
-  }
-
-  res.status(err.status || 500).json({
-    error:
-      process.env.NODE_ENV === 'production'
-        ? 'An unexpected server error occurred'
-        : err.message,
-  });
-});
-
-// Start only after the database migration and admin setup complete.
-const PORT = process.env.PORT || 5000;
-
-async function startServer() {
-  try {
-    await migrate();
-    await ensureAdminFromEnv();
-
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`TourFlow backend running on port ${PORT}`);
-    });
-  } catch (error) {
-    console.error('Failed to start TourFlow backend:', error);
-    process.exit(1);
+const distDir = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
+if (config.serveFrontend) {
+  if (existsSync(resolve(distDir, 'index.html'))) {
+    app.use('/assets', express.static(resolve(distDir, 'assets'), { immutable: true, maxAge: '1y' }));
+    app.use(express.static(distDir, { index: false, maxAge: '1h' }));
+    app.get('*', (req, res) => res.sendFile(resolve(distDir, 'index.html')));
+  } else {
+    console.warn('SERVE_FRONTEND is on but dist/index.html was not found. Run "npm run build" in the project root.');
   }
 }
 
-startServer();
+app.use((err, req, res, next) => {
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Invalid JSON in request.' });
+  }
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Request is too large.' });
+  }
+  sendError(res, err);
+});
 
-export default app;
+async function start() {
+  try {
+    await migrate();
+  } catch (err) {
+    console.error(
+      `\nCould not connect to or prepare the database: ${err.message}\n` +
+        'Check that PostgreSQL is running and DATABASE_URL in backend/.env is correct (see README.md).\n'
+    );
+    process.exit(1);
+  }
+  await ensureAdminFromEnv();
+
+  const server = app.listen(config.port, () => {
+    console.log(`TourFlow backend running on http://localhost:${config.port}`);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(
+        `\nPort ${config.port} is already in use by another program.\n` +
+          `Either stop that program, or start TourFlow on another port:\n` +
+          `  1. set PORT=5050 in backend/.env\n` +
+          `  2. set BACKEND_PORT=5050 in the project root .env (so the frontend proxy matches)\n`
+      );
+      process.exit(1);
+    }
+    throw err;
+  });
+
+  const shutdown = (signal) => {
+    console.log(`${signal} received, shutting down...`);
+    server.close(() => pool.end().then(() => process.exit(0)));
+    setTimeout(() => process.exit(1), 10000).unref();
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+}
+
+start();
