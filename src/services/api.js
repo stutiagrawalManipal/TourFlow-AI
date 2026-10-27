@@ -12,9 +12,7 @@
  * X-Requested-With: TourFlow for CSRF protection.
  */
 
-const API_BASE_URL = import.meta.env.PROD
-  ? 'https://tourflow-ai-backend-g6rh.onrender.com'
-  : '';
+const API_BASE_URL = 'https://tourflow-ai-backend-g6rh.onrender.com';
 
 async function request(url, { method = 'GET', body } = {}) {
   let response;
