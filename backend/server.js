@@ -13,10 +13,37 @@ import { migrate } from './db/migrate.js';
 import { pool } from './db/pool.js';
 import { securityHeaders, requireCsrfHeader } from './middleware/security.js';
 import { sendError } from './utils/asyncHandler.js';
+import cors from 'cors';
 
 const app = express();
+
 app.disable('x-powered-by');
-if (config.trustProxy) app.set('trust proxy', config.trustProxy);
+
+if (config.trustProxy) {
+  app.set('trust proxy', config.trustProxy);
+}
+
+// Allow the deployed Vercel frontend to access the Render API.
+const allowedOrigins = [
+  'https://tour-flow-5cfqj0w00-stutis-projects-0e92c8c2.vercel.app',
+  // Add your stable Vercel production domain here if different.
+];
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Allow requests without an Origin header, such as server-to-server calls.
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error('Origin not allowed by CORS'));
+    },
+    credentials: true,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'X-Requested-With'],
+  })
+);
 
 app.use(securityHeaders);
 app.use(express.json({ limit: '50kb' }));
