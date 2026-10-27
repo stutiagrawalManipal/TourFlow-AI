@@ -1,33 +1,28 @@
-import { registerTourist, login, logout } from '../services/authService.js';
+import { registerTourist, login, logout, updateName, changePassword } from '../services/authService.js';
 import { validateRegistration, toPublicUser, ROLES } from '../models/User.js';
+import { setSessionCookie, clearSessionCookie } from '../middleware/auth.js';
 
-function sendError(res, err) {
-  res.status(err.status || 500).json({ error: err.status ? err.message : 'Something went wrong.', fields: err.fields });
-}
+const meta = (req) => ({ userAgent: req.get('User-Agent'), ip: req.ip });
 
 // POST /api/auth/register  { name, email, password }  -> always a tourist account
-export function register(req, res) {
+export async function register(req, res) {
   const { name, email, password } = req.body || {};
   const fields = validateRegistration({ name, email, password });
   if (Object.keys(fields).length) {
     return res.status(400).json({ error: 'Please fix the highlighted fields.', fields });
   }
-  try {
-    res.status(201).json(registerTourist({ name, email, password }));
-  } catch (err) {
-    sendError(res, err);
-  }
+  const session = await registerTourist({ name, email, password }, meta(req));
+  setSessionCookie(res, session.token, session.expiresAt);
+  res.status(201).json({ user: session.user });
 }
 
 function loginAs(role) {
-  return (req, res) => {
+  return async (req, res) => {
     const { email, password } = req.body || {};
     if (!email || !password) return res.status(400).json({ error: 'Email and password are required.' });
-    try {
-      res.json(login({ email, password, requiredRole: role }));
-    } catch (err) {
-      sendError(res, err);
-    }
+    const session = await login({ email, password, requiredRole: role }, meta(req));
+    setSessionCookie(res, session.token, session.expiresAt);
+    res.json({ user: session.user });
   };
 }
 
@@ -40,7 +35,20 @@ export function me(req, res) {
 }
 
 // POST /api/auth/logout
-export function logoutUser(req, res) {
-  logout(req.token);
+export async function logoutUser(req, res) {
+  await logout(req.token);
+  clearSessionCookie(res);
   res.json({ success: true });
+}
+
+// PATCH /api/auth/me   { name }
+export async function updateProfile(req, res) {
+  res.json({ user: await updateName(req.user, (req.body || {}).name) });
+}
+
+// POST /api/auth/change-password   { currentPassword, newPassword }
+export async function updatePassword(req, res) {
+  const { currentPassword, newPassword } = req.body || {};
+  await changePassword(req.user, currentPassword, newPassword, req.token);
+  res.json({ success: true, message: 'Password changed. Other devices have been logged out.' });
 }

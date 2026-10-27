@@ -1,0 +1,7 @@
+Delete these 3 files from your TourFlow-AI folder (they are no longer used):
+
+backend/README.md          (old notes - replaced by README.md in the project root)
+backend/db/store.js        (old JSON database - replaced by PostgreSQL: backend/db/pool.js)
+src/data/aiResponses.js    (old hardcoded guide answers - not imported anywhere)
+
+Keep backend/data/tourflow-db.json until you have run `npm run db:import-json` (see README).

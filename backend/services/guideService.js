@@ -1,5 +1,5 @@
 import { toDestinationDetails } from '../models/Destination.js';
-import { getCrowdInfo } from './crowdService.js';
+import { getCrowdInfoFor } from './crowdService.js';
 
 /**
  * Tourist guide - answers questions using ONLY the tourism dataset and the
@@ -8,7 +8,34 @@ import { getCrowdInfo } from './crowdService.js';
  */
 const join = (items) => (items && items.length ? items.join(', ') : '');
 
+const notAvailable = (d, what) =>
+  `${what} for ${d.name} have not been verified by TourFlow staff yet. Please check the official website or local notice before you go.`;
+
 const TOPICS = [
+  {
+    key: 'openingHours',
+    words: ['opening', 'open', 'close', 'closing', 'timing', 'hours'],
+    answer: (d) => (d.info.openingHours.available ? `Opening hours (verified): ${d.info.openingHours.text}` : notAvailable(d, 'Opening hours')),
+  },
+  {
+    key: 'entryFees',
+    words: ['entry fee', 'entrance fee', 'ticket', 'fee', 'admission'],
+    answer: (d) => (d.info.entryFees.available ? `Entry fees (verified): ${d.info.entryFees.text}` : notAvailable(d, 'Entry fees')),
+  },
+  {
+    key: 'history',
+    words: ['history', 'historical', 'built', 'significance', 'religious', 'heritage'],
+    answer: (d) =>
+      [d.info.historicalBackground, d.info.significance].filter(Boolean).join(' ') ||
+      `TourFlow does not have historical background for ${d.name} yet. ${d.localCulture || ''}`.trim(),
+  },
+  {
+    key: 'accessibility',
+    words: ['wheelchair', 'accessib', 'disabled', 'elderly access', 'stairs'],
+    answer: (d) =>
+      [d.accessLevel && `Overall access level (dataset): ${d.accessLevel}.`, d.info.accessibilityNotes].filter(Boolean).join(' ') ||
+      `There is no accessibility information for ${d.name} yet.`,
+  },
   {
     key: 'crowd',
     words: ['crowd', 'queue', 'wait', 'busy', 'rush'],
@@ -75,6 +102,8 @@ const TOPICS = [
 
 export const SUGGESTED_QUESTIONS = [
   'What are the main attractions?',
+  'What are the opening hours?',
+  'Is there an entry fee?',
   'When is the best time to visit?',
   'How crowded is it right now?',
   'How many days should I plan?',
@@ -84,17 +113,19 @@ export const SUGGESTED_QUESTIONS = [
   'Do I need a permit?',
 ];
 
-export function answerQuestion(record, question) {
+export async function answerQuestion(row, question) {
   const q = String(question || '').toLowerCase().trim();
-  const destination = toDestinationDetails(record);
+  const destination = toDestinationDetails(row);
   if (!q) return { answer: 'Please type a question.', topic: null, source: 'none' };
 
   // keywords must start at a word boundary ("eat" matches "eat"/"eating", not "great")
   const matches = (word) => new RegExp(`\\b${word}`).test(q);
   const topic = TOPICS.find((t) => t.words.some(matches));
   if (topic) {
-    const answer = topic.answer(destination, getCrowdInfo(record));
-    if (answer) return { answer, topic: topic.key, source: topic.key === 'crowd' ? 'estimate' : 'dataset' };
+    const crowd = topic.key === 'crowd' ? await getCrowdInfoFor(row) : null;
+    const answer = topic.answer(destination, crowd);
+    const source = topic.key === 'crowd' ? 'estimate' : ['openingHours', 'entryFees', 'history', 'accessibility'].includes(topic.key) ? 'tourflow' : 'dataset';
+    if (answer) return { answer, topic: topic.key, source };
     return {
       answer: `The TourFlow dataset does not have that information for ${destination.name}.`,
       topic: topic.key,
@@ -105,7 +136,7 @@ export function answerQuestion(record, question) {
   return {
     answer:
       `I can only answer from the TourFlow dataset, and I could not match that question for ${destination.name}. ` +
-      'Try asking about attractions, best time to visit, crowd, itinerary, budget, safety, permits, food, festivals, transport or local customs.',
+      'Try asking about attractions, best time to visit, opening hours, entry fees, history, crowd, itinerary, budget, safety, permits, food, festivals, transport, accessibility or local customs.',
     topic: null,
     source: 'none',
   };

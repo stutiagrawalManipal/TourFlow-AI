@@ -1,51 +1,53 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { fetchMe, loginTourist, loginAdmin, registerUser, logoutUser, getToken, setToken } from '../services/api';
+import { fetchMe, loginTourist, loginAdmin, registerUser, logoutUser } from '../services/api';
 
 const AuthContext = createContext();
 
 /**
  * Real authentication against the backend.
- * - The token is saved in localStorage so the login survives a page refresh.
- * - On start-up the token is checked with GET /api/auth/me.
- * - The user's role comes from the server; the backend checks it again on
- *   every protected request, so changing it in the browser does nothing.
+ * - The server keeps the session in an HttpOnly cookie (JavaScript cannot read it).
+ * - On start-up GET /api/auth/me tells us who is logged in (survives page refresh).
+ * - The user's role comes from the server and is checked again on every
+ *   protected request, so changing anything in the browser does nothing.
  */
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(Boolean(getToken()));
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!getToken()) return;
     fetchMe()
       .then((data) => setUser(data.user))
-      .catch((err) => {
-        if (err.status === 401) setToken(null); // expired or invalid
-      })
+      .catch(() => setUser(null)) // 401 = not logged in
       .finally(() => setLoading(false));
   }, []);
 
-  const startSession = ({ token, user: loggedInUser }) => {
-    setToken(token);
-    setUser(loggedInUser);
-    return loggedInUser;
+  const login = async (email, password) => {
+    const { user: loggedIn } = await loginTourist({ email, password });
+    setUser(loggedIn);
+    return loggedIn;
   };
-
-  const login = async (email, password) => startSession(await loginTourist({ email, password }));
-  const adminLogin = async (email, password) => startSession(await loginAdmin({ email, password }));
-  const register = async (name, email, password) => startSession(await registerUser({ name, email, password }));
+  const adminLogin = async (email, password) => {
+    const { user: loggedIn } = await loginAdmin({ email, password });
+    setUser(loggedIn);
+    return loggedIn;
+  };
+  const register = async (name, email, password) => {
+    const { user: created } = await registerUser({ name, email, password });
+    setUser(created);
+    return created;
+  };
 
   const logout = async () => {
     try {
       await logoutUser();
     } catch {
-      // token already invalid - still log out locally
+      // session already gone - still log out locally
     }
-    setToken(null);
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, adminLogin, register, logout, isAdmin: user?.role === 'admin' }}>
+    <AuthContext.Provider value={{ user, setUser, loading, login, adminLogin, register, logout, isAdmin: user?.role === 'admin' }}>
       {children}
     </AuthContext.Provider>
   );

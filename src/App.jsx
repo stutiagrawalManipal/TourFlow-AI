@@ -15,6 +15,7 @@ import MyQueue from './pages/MyQueue';
 import AIGuide from './pages/AIGuide';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
+import Account from './pages/Account';
 
 /**
  * Helper to scroll page to top on route navigation
@@ -48,6 +49,7 @@ export default function App() {
               {/* Tourist pages (login required) */}
               <Route path="/dashboard" element={<ProtectedRoute role="tourist"><Dashboard /></ProtectedRoute>} />
               <Route path="/queue" element={<ProtectedRoute role="tourist"><MyQueue /></ProtectedRoute>} />
+              <Route path="/account" element={<ProtectedRoute role="tourist"><Account /></ProtectedRoute>} />
 
               {/* Admin portal */}
               <Route path="/admin/login" element={<AdminLogin />} />

@@ -74,7 +74,7 @@ export default function Footer() {
               <p className="text-cyan-400 font-bold">SOFTWARE ENGINEERING CAPSTONE</p>
               <p>Frontend: React + Vite + Tailwind</p>
               <p>Backend: Node.js + Express REST API</p>
-              <p>Data: tourism dataset + JSON database</p>
+              <p>Data: tourism dataset + PostgreSQL</p>
             </div>
           </div>
         </div>

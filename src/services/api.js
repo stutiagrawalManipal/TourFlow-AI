@@ -1,37 +1,18 @@
 /**
  * API service - every call from the frontend to the TourFlow backend.
  * In development, Vite forwards /api/* to the backend (see vite.config.js).
- * The login token is kept in localStorage and sent as "Authorization: Bearer".
+ *
+ * Login sessions use an HttpOnly cookie set by the server, so no token is
+ * ever stored in JavaScript or localStorage. Every request sends
+ * "X-Requested-With: TourFlow", which the server requires for changes (CSRF protection).
  */
-const TOKEN_KEY = 'tourflow_token';
-
-export const getToken = () => {
-  try {
-    return localStorage.getItem(TOKEN_KEY);
-  } catch {
-    return null;
-  }
-};
-
-export const setToken = (token) => {
-  try {
-    if (token) localStorage.setItem(TOKEN_KEY, token);
-    else localStorage.removeItem(TOKEN_KEY);
-  } catch {
-    // storage blocked - login only lasts for this page load
-  }
-};
-
 async function request(url, { method = 'GET', body } = {}) {
-  const token = getToken();
   let response;
   try {
     response = await fetch(url, {
       method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'TourFlow' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
@@ -43,37 +24,22 @@ async function request(url, { method = 'GET', body } = {}) {
     const error = new Error(data.error || `Request failed (${response.status})`);
     error.status = response.status;
     error.fields = data.fields;
+    error.code = data.code;
     error.data = data;
     throw error;
   }
   return data;
 }
 
-// The dataset has no photos, so cards use a coloured placeholder with the name
-export function placeholderImage(destination) {
-  const hue = (Number(destination.id) * 47) % 360 || 200;
-  const name = String(destination.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
-  const fontSize = Math.min(36, Math.floor(1300 / Math.max(name.length, 1)));
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
-    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="hsl(${hue},45%,24%)"/>
-      <stop offset="1" stop-color="hsl(${(hue + 40) % 360},50%,10%)"/>
-    </linearGradient></defs>
-    <rect width="800" height="500" fill="url(#g)"/>
-    <text x="400" y="260" font-family="sans-serif" font-size="${fontSize}" font-weight="700"
-      fill="rgba(255,255,255,0.35)" text-anchor="middle">${name}</text>
-  </svg>`;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-}
-
-const withImage = (destination) => ({ ...destination, imageUrl: destination.imageUrl || placeholderImage(destination) });
-
-// ---------- Auth ----------
+// ---------- Auth & account ----------
 export const registerUser = (data) => request('/api/auth/register', { method: 'POST', body: data });
 export const loginTourist = (data) => request('/api/auth/login', { method: 'POST', body: data });
 export const loginAdmin = (data) => request('/api/auth/admin/login', { method: 'POST', body: data });
 export const fetchMe = () => request('/api/auth/me');
 export const logoutUser = () => request('/api/auth/logout', { method: 'POST' });
+export const updateProfile = (name) => request('/api/auth/me', { method: 'PATCH', body: { name } });
+export const changePassword = (currentPassword, newPassword) =>
+  request('/api/auth/change-password', { method: 'POST', body: { currentPassword, newPassword } });
 
 // ---------- Destinations ----------
 export async function fetchDestinations({ search = '', state = '', category = '' } = {}) {
@@ -81,17 +47,17 @@ export async function fetchDestinations({ search = '', state = '', category = ''
   if (search) params.set('search', search);
   if (state) params.set('state', state);
   if (category) params.set('category', category);
-  return (await request(`/api/destinations?${params}`)).map(withImage);
+  return request(`/api/destinations?${params}`);
 }
 export const fetchFilters = () => request('/api/destinations/filters');
-export const fetchDestination = async (id) => withImage(await request(`/api/destinations/${id}`));
+export const fetchDestination = (id) => request(`/api/destinations/${encodeURIComponent(id)}`);
 
 // ---------- Queue (tourist) ----------
 export const createQueueBooking = ({ destinationId, numberOfPeople, requestId }) =>
   request('/api/queue', { method: 'POST', body: { destinationId, numberOfPeople, requestId } });
 export const fetchMyBookings = () => request('/api/queue/mine');
-export const fetchBooking = (bookingId) => request(`/api/queue/${bookingId}`);
-export const cancelQueueBooking = (bookingId) => request(`/api/queue/${bookingId}`, { method: 'DELETE' });
+export const fetchBooking = (bookingId) => request(`/api/queue/${encodeURIComponent(bookingId)}`);
+export const cancelQueueBooking = (bookingId) => request(`/api/queue/${encodeURIComponent(bookingId)}`, { method: 'DELETE' });
 
 // ---------- Guide ----------
 export const fetchGuideQuestions = () => request('/api/guide/questions');
@@ -107,11 +73,26 @@ export const fetchAdminBookings = ({ search = '', status = '', destinationId = '
   return request(`/api/admin/bookings?${params}`);
 };
 export const lookupBooking = (code) => request(`/api/admin/bookings/lookup/${encodeURIComponent(code)}`);
-export const updateBookingStatus = (bookingId, action) => request(`/api/admin/bookings/${bookingId}/${action}`, { method: 'POST' });
+// action: check-in | check-out | cancel | no-show ; options: { reason, override }
+export const updateBookingStatus = (bookingId, action, options = {}) =>
+  request(`/api/admin/bookings/${encodeURIComponent(bookingId)}/${action}`, { method: 'POST', body: options });
 export const fetchAdminQueue = (destinationId) => request(`/api/admin/queue/${destinationId}`);
 export const fetchCrowdOverview = () => request('/api/admin/crowd');
 export const updateDestinationSettings = (destinationId, settings) =>
   request(`/api/admin/destinations/${destinationId}/settings`, { method: 'PATCH', body: settings });
+export const fetchDestinationContent = (destinationId) => request(`/api/admin/destinations/${destinationId}/content`);
+export const saveDestinationContent = (destinationId, content) =>
+  request(`/api/admin/destinations/${destinationId}/content`, { method: 'PUT', body: content });
+export const saveDestinationImages = (destinationId, images) =>
+  request(`/api/admin/destinations/${destinationId}/images`, { method: 'PUT', body: { images } });
+export const fetchAuditLog = ({ action = '', target = '', actor = '', before = '' } = {}) => {
+  const params = new URLSearchParams();
+  if (action) params.set('action', action);
+  if (target) params.set('target', target);
+  if (actor) params.set('actor', actor);
+  if (before) params.set('before', before);
+  return request(`/api/admin/audit?${params}`);
+};
 
 // Unique id for one booking attempt (stops double submissions creating 2 bookings)
 export function newRequestId() {

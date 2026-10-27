@@ -1,0 +1,20 @@
+# Optional: run PostgreSQL in Docker instead of installing it.
+#   docker compose up -d
+# Then in backend/.env:
+#   DATABASE_URL=postgres://tourflow:tourflow@localhost:5432/tourflow
+# Change the password before using this anywhere other than your own computer.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tourflow
+      POSTGRES_PASSWORD: tourflow
+      POSTGRES_DB: tourflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - tourflow-pgdata:/var/lib/postgresql/data
+
+volumes:
+  tourflow-pgdata:

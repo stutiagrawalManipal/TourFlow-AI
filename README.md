@@ -1,169 +1,181 @@
 # TourFlow AI
 
-Tourist destination explorer, crowd estimates and digital FIFO queue management for
-destinations across India (100 destinations from the project's tourism dataset).
+Tourist destination explorer, crowd estimates and a digital FIFO queue for 100 destinations
+across India (from the project's tourism dataset), with a tourist portal and a separate admin portal.
 
 - **Frontend:** React 18 + Vite 6 + Tailwind CSS 3 + React Router
-- **Backend:** Node.js + Express (the only backend dependency)
-- **Storage:** one JSON database file (`backend/data/tourflow-db.json`), created automatically
-- **Auth:** passwords hashed with scrypt, random session tokens, roles checked on the server
+- **Backend:** Node.js (18.17+) + Express 4
+- **Database:** PostgreSQL 14+ (driver: `pg`)
+- **Auth:** scrypt password hashing, server-side sessions in an HttpOnly cookie, roles checked on every request
 
 ---
 
-## 1. First-time setup
+## 1. Database setup (one time)
 
-Requirements: **Node.js 18 or newer** (`node -v`).
+Pick **one** option.
+
+**A. Docker** (easiest if Docker Desktop is installed)
+```bash
+docker compose up -d          # in the project root, uses docker-compose.yml
+```
+`DATABASE_URL=postgres://tourflow:tourflow@localhost:5432/tourflow`
+
+**B. Install PostgreSQL** (Windows/Mac installer from postgresql.org, or `apt install postgresql`).
+Then create a user and database (in `psql` or pgAdmin):
+```sql
+CREATE USER tourflow WITH PASSWORD 'choose-a-password';
+CREATE DATABASE tourflow OWNER tourflow;
+```
+`DATABASE_URL=postgres://tourflow:choose-a-password@localhost:5432/tourflow`
+
+**C. Hosted** (Neon, Supabase, Render ...): copy their connection string and set `DATABASE_SSL=true`.
+
+## 2. Install and configure
 
 ```bash
-# in the project root (frontend)
-npm install
-
-# backend
+npm install                  # project root (frontend)
 cd backend
-npm install
+npm install                  # backend (adds the pg driver)
 ```
 
-Create the backend settings file and choose your own admin login:
-
-```bash
-# Windows:   copy backend\.env.example backend\.env
-# Mac/Linux: cp backend/.env.example backend/.env
+Copy `backend/.env.example` to `backend/.env` and set at least:
 ```
-
-Open `backend/.env` and set:
-
+DATABASE_URL=...             # from step 1
+ADMIN_EMAIL=you@example.com
+ADMIN_PASSWORD=YourStrongPass123
+WIKIMEDIA_CONTACT=you@example.com
 ```
-ADMIN_EMAIL=your-admin-email@example.com
-ADMIN_PASSWORD=YourStrongPassword123
-```
-
-The admin account is created automatically the first time the backend starts.
 `backend/.env` is in `.gitignore`. Never commit it.
 
-## 2. Run (two terminals)
+The tables are created automatically when the backend starts, and the 100 destinations are
+loaded from `backend/data/india_tourism_dataset.json`. You can also run `npm run db:migrate`.
 
-**Terminal 1 - backend**
+### Upgrading from the JSON version (keeps your users and bookings)
 ```bash
 cd backend
-npm run dev
+npm run db:import-json       # reads data/tourflow-db.json
 ```
-Expected output: `TourFlow backend running on http://localhost:5000`
+Users keep their passwords; bookings keep their IDs, queue numbers and QR pass codes.
+Running it twice is safe. Afterwards `data/tourflow-db.json` is only a backup.
 
-**Terminal 2 - frontend** (project root)
+### Destination photos (run once, needs internet)
 ```bash
-npm run dev
+cd backend
+npm run images:fetch         # add -- --dry-run to preview, -- --force to replace
 ```
+For each destination this takes the main photo of a matching English Wikipedia article
+(`backend/data/wikipedia_titles.json`) **only if** it is a Wikimedia Commons file under a free licence
+(CC0, public domain, CC BY, CC BY-SA - no NC/ND). Author, licence and source link are saved and shown
+next to the photo, as the licences require. Destinations it cannot match are listed so you can add a photo
+in **Admin → Destinations**. Destinations without a photo show a named placeholder.
 
-Open **http://localhost:3000**
+## 3. Run (two terminals)
+
+```bash
+# Terminal 1
+cd backend
+npm run dev                  # http://localhost:5000
+
+# Terminal 2 (project root)
+npm run dev                  # http://localhost:3000
+```
 
 | Page | URL |
 |---|---|
 | Home | http://localhost:3000/ |
-| Tourist login / register | /login, /register |
+| Tourist login / register / account | /login, /register, /account |
 | Admin login | http://localhost:3000/admin/login |
 | Admin dashboard | /admin |
 
-## 3. Admin accounts
+## 4. Admin accounts
 
-- Tourists can only register as tourists. The register API ignores any `role` sent to it.
-- The first admin is created from `ADMIN_EMAIL` / `ADMIN_PASSWORD` in `backend/.env`.
-- To create another admin, or reset a password:
-  ```bash
-  cd backend
-  npm run create-admin -- admin2@example.com "AnotherStrongPass1" "Admin Name"
-  ```
-- Admins log in at `/admin/login`. A tourist account is rejected there, and an admin
-  account is rejected on the tourist login.
+- Registration always creates a **tourist**; any `role` sent by a browser is ignored.
+- The first admin is created from `ADMIN_EMAIL` / `ADMIN_PASSWORD` when the backend starts.
+- Add another admin or reset a password: `npm run create-admin -- admin2@example.com "AnotherPass123" "Name"`
+- Tourists are refused at `/admin/login`, and admins at the tourist login.
 
-## 4. Ports and common errors
+## 5. How the queue works
+
+**Booking rules (enforced by the server and by database constraints)**
+- Logged-in tourists only. 1 to 4 people per booking (`CHECK` constraint in the database too).
+- The queue must be open, and the group must fit in the destination's queue capacity (set by admins).
+- One active booking per tourist per destination. A double-click or retry sends the same request id
+  and gets the same booking back instead of a second one.
+
+**FIFO and concurrency**
+- Each destination has a ticket counter. Booking runs in one PostgreSQL transaction that locks that
+  destination's row (`SELECT … FOR UPDATE`): check rules, take the next ticket number, insert the booking,
+  and write the audit entry. If any step fails, nothing is saved.
+- `UNIQUE (destination_id, ticket_number)` makes a duplicate queue number impossible, even with several
+  backend servers running.
+- Queue position is always calculated from the stored data (waiting bookings with a lower ticket number).
+  It is never stored or edited by hand.
+- At the gate, **only the booking at the front can be checked in or marked no-show**. Letting anyone else
+  in first is an **override** that needs a written reason and is recorded in the audit log.
+  Staff cancellations also need a reason.
+- Status flow: `WAITING → CHECKED_IN → CHECKED_OUT (completed)`, `WAITING → NO_SHOW`,
+  `WAITING → CANCELLED`.
+
+**Audit log**: admin actions, overrides, admin logins (and failed attempts), password changes and imports.
+The database rejects any `UPDATE` or `DELETE` on it.
+
+**QR pass**: contains `TOURFLOW:<bookingId>:<passCode>`. In **Admin → Check-in / out**, paste the scanned
+text, the booking ID or the pass code. A QR lookup only succeeds when the pass code matches.
+
+## 6. Crowd and waiting time (estimates)
+
+There are **no live sensors, cameras or official integrations**. The crowd level combines the dataset's
+peak/off season and popularity with the number of people waiting in TourFlow. Estimated wait = people ahead ÷ entry rate.
+
+The entry rate is measured from check-ins once there are 5 or more in the last hour; otherwise the
+admin's planning rate is used. Every screen shows the data source and the last queue activity, and data
+older than 2 hours is marked stale.
+
+## 7. Destination information
+
+Dataset facts are shown as they are. Information the dataset does not have is shown as
+**"Not available yet"** and can be added in **Admin → Destinations**:
+- historical background, significance, visitor guidelines, accessibility, visit duration, guide information
+- extra FAQs (FAQs built from dataset fields are added automatically)
+- photographs with alt text, credit and licence
+
+**Opening hours and entry fees are shown to tourists only after an admin marks them verified with an
+official source link**; until then the page says "Not verified yet". Drafts stay hidden.
+
+## 8. Security summary
+
+- Passwords hashed with scrypt + salt; failed-login lockout per email; rate limits on login, registration,
+  booking and the guide.
+- Session token in an `HttpOnly; SameSite=Lax` cookie (`Secure` in production); only its SHA-256 hash is
+  stored. Changing your password logs out your other devices.
+- CSRF: all changing requests must send `X-Requested-With: TourFlow` (other sites cannot add it).
+- Security headers on every response; strict Content-Security-Policy for the built site.
+- Every query is parameterised. Admin routes check the role stored in the database, never a value sent by the browser.
+
+## 9. Production
+
+```bash
+npm run build                          # project root -> dist/
+cd backend
+NODE_ENV=production TRUST_PROXY=1 npm start
+```
+With `NODE_ENV=production` the backend also serves `dist/` on the same port, so the site and API share one
+origin and cookies are `Secure` (serve over HTTPS). Use a strong `ADMIN_PASSWORD` and a private `DATABASE_URL`.
+
+## 10. Ports and common errors
 
 | Problem | Fix |
 |---|---|
-| `Port 5000 is already in use` | Another program uses port 5000 (on Mac, often AirPlay Receiver). Do not kill unknown programs. Set `PORT=5050` in `backend/.env` **and** `BACKEND_PORT=5050` in a root `.env` (copy `.env.example`). Restart both. |
-| Website says "Cannot reach the TourFlow server" | The backend is not running, or the ports do not match (see above). |
-| `Cannot find package 'express'` | Run `npm install` inside `backend/`. |
-| `@tailwindcss/postcss` error | That plugin is for Tailwind **v4**. This project uses Tailwind **v3** with `postcss.config.js` using `tailwindcss: {}`. Delete `node_modules` and `package-lock.json` changes, keep this `package.json`, run `npm install`. Do not install Tailwind v4. |
-| Git conflict markers (`<<<<<<<`) | This version contains none. If your local copy has them, replace your `src/` and `backend/` folders with the ones from this version. |
+| `DATABASE_URL is not set` / `Could not connect to the database` | Start PostgreSQL (step 1) and check `backend/.env`. |
+| `Port 5000 is already in use` | Set `PORT=5050` in `backend/.env` **and** `BACKEND_PORT=5050` in a root `.env` (copy `.env.example`). Do not kill unknown programs. |
+| Website says "Cannot reach the TourFlow server" | The backend is not running, or the ports do not match. |
+| `Cannot find package 'pg'` | Run `npm install` inside `backend/`. |
+| `Request blocked (missing X-Requested-With header)` | Call the API through `src/services/api.js` (it adds the header). |
 
-## 5. How it works
+## 11. Known limitations
 
-### Queue rules (enforced by the backend)
-- A tourist must be logged in to book. Admins cannot book.
-- 1 to 4 people per booking; 0, 5 or more, decimals and text are rejected with a message.
-- Each destination has its own FIFO queue. Each booking gets the next ticket number of
-  that destination's queue. The current position is the place among waiting bookings,
-  ordered by ticket number.
-- A double-click or network retry sends the same `requestId`, so the server returns the
-  first booking instead of creating a second one.
-- A tourist can have only one active booking per destination.
-- Status flow: `WAITING → CHECKED_IN → CHECKED_OUT`, or `WAITING → CANCELLED`.
-  Only admins can check in and check out. A tourist can only cancel their own waiting booking.
-- Tourists only ever see their own bookings.
-- Every change is saved to `backend/data/tourflow-db.json` with an atomic write. Node handles
-  requests one at a time, and booking creation has no `await` inside it, so simultaneous
-  requests cannot get duplicate positions. Bookings and logins survive a restart.
-
-### QR queue pass
-Each booking has a random pass code. The QR code on the pass contains
-`TOURFLOW:<bookingId>:<passCode>`. Staff paste the booking ID, the pass code or the scanned
-QR text into **Admin → Check-in / out**. The QR generator is built into the project
-(`src/utils/qrcode.js`); no extra package is needed.
-
-### Crowd and waiting time (estimates)
-There are **no live sensors, cameras or official integrations**. The crowd level combines:
-1. **Season estimate** from the dataset: peak/off season months and popularity score.
-2. **TourFlow queue**: people waiting (High at 40+, Moderate at 15+).
-
-Estimated wait = people ahead ÷ entry rate.
-
-- **Entry rate:** measured from check-ins once there are 5 or more in the last hour.
-  Otherwise it uses the planning rate set by the admin (default 2 people/min).
-- **Last updated:** the last queue activity is shown, and data older than 2 hours is marked stale.
-
-### AI Tourist Guide
-Answers come **only from the tourism dataset**, on the server (`backend/services/guideService.js`),
-by matching keywords: attractions, seasons, crowd, itinerary, budget, safety, permits, food,
-festivals, transport, customs, language, stay, and who it is good for. Questions it cannot
-match get an honest "not in the dataset" reply. No paid AI API or key is needed. An external
-AI model could be added later behind the same `/api/guide/ask` endpoint.
-
-## 6. API overview
-
-| Method | URL | Who |
-|---|---|---|
-| POST | /api/auth/register | public (creates tourist) |
-| POST | /api/auth/login | tourists |
-| POST | /api/auth/admin/login | admins |
-| GET | /api/auth/me · POST /api/auth/logout | logged in |
-| GET | /api/destinations?search=&state=&category= | public |
-| GET | /api/destinations/filters · /api/destinations/:id | public |
-| POST | /api/queue `{ destinationId, numberOfPeople, requestId }` | tourist |
-| GET | /api/queue/mine · /api/queue/:bookingId | owner / admin |
-| DELETE | /api/queue/:bookingId | owner / admin |
-| POST | /api/guide/ask `{ destinationId, question }` · GET /api/guide/questions | public |
-| GET | /api/admin/stats · /api/admin/bookings · /api/admin/bookings/lookup/:code | admin |
-| POST | /api/admin/bookings/:id/check-in · check-out · cancel | admin |
-| GET | /api/admin/queue/:destinationId · /api/admin/crowd | admin |
-| PATCH | /api/admin/destinations/:id/settings `{ queueOpen, entryRatePerMinute, notice }` | admin |
-
-## 7. Project structure
-
-```
-backend/
-  server.js            app setup, routes, port error message
-  config/env.js        reads backend/.env (no dotenv package needed)
-  db/store.js          JSON file database with atomic writes
-  middleware/auth.js   requireAuth / requireRole (role read from the database)
-  models/              User, Booking (rules + status transitions), Destination (dataset mapping)
-  services/            auth, destination, queue, crowd, guide, stats
-  controllers/ routes/ HTTP layer
-  scripts/createAdmin.js
-  data/india_tourism_dataset.json   (static, read-only)
-src/
-  services/api.js      all API calls
-  context/             AuthContext (login state), QueueContext (bookings from server)
-  components/          ProtectedRoute, QueueModal, QRPass, QRCode, ...
-  pages/               Landing, Destinations, DestinationDetails, MyQueue, AIGuide,
-                       Login, Register, Dashboard, AdminLogin, AdminDashboard
-  utils/qrcode.js      QR code generator
-```
+- Crowd levels and waiting times are estimates; walk-in visitors are not counted.
+- No camera QR scanner in the admin portal (staff paste or type the code).
+- Photos depend on `npm run images:fetch` or manual entry; some destinations may have none.
+- Rate limits and login lockout are kept in memory (per server process). Use Redis if you run several servers.
+- No password reset by email.

@@ -96,7 +96,7 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             {user ? (
               <div className="flex items-center gap-3 pl-3 border-l border-slate-800">
-                <div className="flex items-center gap-2.5">
+                <Link to={isAdmin ? '/admin' : '/account'} title={isAdmin ? 'Admin dashboard' : 'My account'} className="flex items-center gap-2.5 rounded-lg px-1 py-0.5 hover:bg-slate-800/60">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-600 to-amber-500 flex items-center justify-center font-bold text-xs text-slate-950 font-mono">
                     {user.initials || 'EX'}
                   </div>
@@ -105,10 +105,10 @@ export default function Navbar() {
                       {user.name}
                     </p>
                     <p className={`text-[10px] font-mono uppercase ${isAdmin ? 'text-amber-400' : 'text-cyan-400'}`}>
-                      {isAdmin ? 'Administrator' : 'Tourist'}
+                      {isAdmin ? 'Administrator' : 'Tourist • Account'}
                     </p>
                   </div>
-                </div>
+                </Link>
 
                 <button
                   onClick={handleLogout}
@@ -192,15 +192,15 @@ export default function Navbar() {
           <div className="pt-3 border-t border-slate-800">
             {user ? (
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <Link to={isAdmin ? '/admin' : '/account'} onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-cyan-600 flex items-center justify-center font-bold text-xs text-slate-950 font-mono">
                     {user.initials}
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-white">{user.name}</p>
-                    <p className="text-[10px] text-cyan-400">{user.email}</p>
+                    <p className="text-[10px] text-cyan-400">{user.email}{isAdmin ? '' : ' • My account'}</p>
                   </div>
-                </div>
+                </Link>
                 <button
                   onClick={() => {
                     handleLogout();

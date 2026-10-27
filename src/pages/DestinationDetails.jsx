@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { MapPin, Compass, Sparkles, ArrowLeft, Calendar, ShieldCheck, CheckCircle2, Ticket, Info, Clock, AlertTriangle } from 'lucide-react';
+import {
+  MapPin, Compass, Sparkles, ArrowLeft, Calendar, ShieldCheck, CheckCircle2, Ticket, Info, Clock, AlertTriangle,
+  Landmark, IndianRupee, Accessibility, Users, HelpCircle, ChevronLeft, ChevronRight, BadgeCheck,
+} from 'lucide-react';
 import { fetchDestination } from '../services/api';
 import CrowdBadge from '../components/CrowdBadge';
 import QueueModal from '../components/QueueModal';
+import DestinationImage, { ImageCredit } from '../components/DestinationImage';
 
 // Small helpers so missing dataset fields simply do not render
 function Chips({ items }) {
@@ -17,14 +21,22 @@ function Chips({ items }) {
   );
 }
 
-function Section({ title, show = true, children }) {
+function Section({ title, icon: Icon, show = true, children }) {
   if (!show) return null;
   return (
     <div className="pt-4 border-t border-slate-800">
-      <h3 className="text-base font-bold text-white mb-3 font-sans">{title}</h3>
+      <h3 className="text-base font-bold text-white mb-3 font-sans flex items-center gap-2">
+        {Icon && <Icon className="w-4 h-4 text-cyan-400" />}
+        {title}
+      </h3>
       {children}
     </div>
   );
+}
+
+// Shown when TourFlow does not have (verified) information yet - never invented
+function NotAvailable({ text = 'Not available yet.' }) {
+  return <p className="text-xs text-slate-500 italic">{text}</p>;
 }
 
 function Fact({ label, value, accent = 'text-slate-200' }) {
@@ -33,6 +45,75 @@ function Fact({ label, value, accent = 'text-slate-200' }) {
     <div className="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800">
       <span className="text-slate-500 font-mono text-[11px] block uppercase">{label}</span>
       <span className={`font-medium block mt-1 ${accent}`}>{value}</span>
+    </div>
+  );
+}
+
+// Opening hours / entry fees: only shown once an admin has verified them with a source
+function VerifiedFact({ label, icon: Icon, fact }) {
+  return (
+    <div className="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800 text-xs">
+      <span className="text-slate-500 font-mono text-[11px] uppercase flex items-center gap-1.5">
+        <Icon className="w-3.5 h-3.5 text-cyan-400" /> {label}
+      </span>
+      {fact?.available ? (
+        <>
+          <span className="text-slate-200 font-medium block mt-1 whitespace-pre-line">{fact.text}</span>
+          <span className="text-[10px] text-emerald-400 mt-1 flex items-center gap-1">
+            <BadgeCheck className="w-3 h-3" /> Verified{fact.verifiedAt ? ` ${new Date(fact.verifiedAt).toLocaleDateString()}` : ''}
+            {fact.sourceUrl && (
+              <a href={fact.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline text-cyan-300 ml-1">source</a>
+            )}
+          </span>
+        </>
+      ) : (
+        <span className="text-slate-500 italic block mt-1">Not verified yet - please check the official website or local notice.</span>
+      )}
+    </div>
+  );
+}
+
+function Gallery({ images, name, id }) {
+  const [index, setIndex] = useState(0);
+  const current = images[index];
+  const go = (step) => setIndex((i) => (i + step + images.length) % images.length);
+
+  return (
+    <div className="space-y-2">
+      <div className="relative aspect-[16/9] rounded-3xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950">
+        <DestinationImage key={current?.url || 'none'} image={current} name={name} id={id} priority sizes="(min-width: 1024px) 66vw, 100vw" />
+        {images.length > 1 && (
+          <>
+            <button onClick={() => go(-1)} aria-label="Previous photo" className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-slate-950/70 text-white hover:bg-slate-900">
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button onClick={() => go(1)} aria-label="Next photo" className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-slate-950/70 text-white hover:bg-slate-900">
+              <ChevronRight className="w-5 h-5" />
+            </button>
+            <span className="absolute bottom-3 right-3 text-[11px] font-mono bg-slate-950/80 px-2 py-0.5 rounded text-slate-300">
+              {index + 1} / {images.length}
+            </span>
+          </>
+        )}
+        {!images.length && (
+          <span className="absolute bottom-3 left-3 text-[11px] font-mono bg-slate-950/80 px-2 py-0.5 rounded text-slate-400">No photograph yet</span>
+        )}
+      </div>
+      {images.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {images.map((img, i) => (
+            <button
+              key={img.url}
+              onClick={() => setIndex(i)}
+              aria-label={`Show photo ${i + 1}`}
+              className={`w-20 h-14 rounded-lg overflow-hidden flex-shrink-0 border-2 ${i === index ? 'border-cyan-400' : 'border-transparent opacity-70 hover:opacity-100'}`}
+            >
+              <DestinationImage image={img} name={name} id={id} sizes="80px" />
+            </button>
+          ))}
+        </div>
+      )}
+      <ImageCredit image={current} className="px-1" />
     </div>
   );
 }
@@ -52,6 +133,7 @@ export default function DestinationDetails() {
   const [destination, setDestination] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [openFaq, setOpenFaq] = useState(0);
 
   // GET /api/destinations/:id  (reloads after the queue modal closes)
   useEffect(() => {
@@ -75,9 +157,7 @@ export default function DestinationDetails() {
 
   if (loadError) {
     return (
-      <div className="max-w-lg mx-auto my-20 bg-rose-500/10 border border-rose-500/30 rounded-2xl p-6 text-center text-xs font-mono text-rose-300">
-        {loadError}
-      </div>
+      <div className="max-w-lg mx-auto my-20 bg-rose-500/10 border border-rose-500/30 rounded-2xl p-6 text-center text-xs font-mono text-rose-300">{loadError}</div>
     );
   }
 
@@ -85,7 +165,7 @@ export default function DestinationDetails() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center">
         <h2 className="text-2xl font-bold text-white mb-2">Destination Not Found</h2>
-        <p className="text-sm text-slate-400 mb-6">No destination with ID "{id}" exists in the dataset.</p>
+        <p className="text-sm text-slate-400 mb-6">No destination with ID "{id}" exists.</p>
         <Link to="/destinations" className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-500 text-slate-950 font-bold rounded-xl text-xs font-mono uppercase">
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Destinations</span>
@@ -96,6 +176,8 @@ export default function DestinationDetails() {
 
   const crowd = destination.crowd;
   const days = destination.days || {};
+  const info = destination.info || {};
+  const canBook = crowd.queueOpen && !crowd.isFull;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -150,27 +232,40 @@ export default function DestinationDetails() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left column: dataset information */}
+        {/* Left column */}
         <div className="lg:col-span-8 space-y-8">
-          <div className="relative aspect-[16/9] rounded-3xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950">
-            <img src={destination.imageUrl} alt={destination.name} className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
-            <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between text-xs font-mono text-slate-300">
-              {days.ideal && (
-                <span className="bg-slate-950/80 backdrop-blur-md px-3 py-1 rounded-lg border border-slate-700">Ideal stay: {days.ideal} days</span>
-              )}
-              <span className="bg-slate-950/80 backdrop-blur-md px-3 py-1 rounded-lg border border-slate-700 hidden sm:inline">Image placeholder - no photos in dataset</span>
-            </div>
-          </div>
+          <Gallery images={destination.images || []} name={destination.name} id={destination.id} />
 
           <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 backdrop-blur-md">
             <div>
-              <h3 className="text-xl font-bold text-white mb-2 font-sans">Overview</h3>
+              <h3 className="text-xl font-bold text-white mb-2 font-sans">Description</h3>
               <p className="text-sm text-slate-300 leading-relaxed">{destination.shortDescription}</p>
               {destination.reviewSummary && <p className="text-sm text-slate-400 leading-relaxed mt-2">{destination.reviewSummary}</p>}
             </div>
 
-            <Section title="Primary Attractions" show={destination.attractions.length > 0}>
+            <Section title="Historical Background" icon={Landmark}>
+              {info.historicalBackground ? <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line">{info.historicalBackground}</p> : <NotAvailable />}
+            </Section>
+
+            <Section title="Cultural & Religious Significance" icon={Sparkles}>
+              {info.significance && <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line mb-2">{info.significance}</p>}
+              {destination.localCulture && <p className="text-sm text-slate-400 leading-relaxed">{destination.localCulture}</p>}
+              {!info.significance && !destination.localCulture && <NotAvailable />}
+            </Section>
+
+            <Section title="Visiting Information" icon={Clock}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <VerifiedFact label="Opening Hours" icon={Clock} fact={info.openingHours} />
+                <VerifiedFact label="Entry Fees" icon={IndianRupee} fact={info.entryFees} />
+                <div className="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800 text-xs">
+                  <span className="text-slate-500 font-mono text-[11px] uppercase block">Expected Visit Duration</span>
+                  {info.visitDuration ? <span className="text-slate-200 font-medium block mt-1">{info.visitDuration}</span> : <span className="text-slate-500 italic block mt-1">Not available yet.</span>}
+                </div>
+                <Fact label="Suggested Trip Length (dataset)" value={days.minimum ? `${days.minimum}-${days.maximum} days (ideal ${days.ideal})` : ''} />
+              </div>
+            </Section>
+
+            <Section title="Primary Attractions" icon={CheckCircle2} show={destination.attractions.length > 0}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {destination.attractions.map((item) => (
                   <div key={item} className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs text-slate-300">
@@ -188,14 +283,14 @@ export default function DestinationDetails() {
               <Fact label="Best Seasons" value={destination.bestSeasons.join(', ')} accent="text-amber-300" />
               <Fact label="Peak Season" value={destination.peakSeason} />
               <Fact label="Off Season" value={destination.offSeason} />
-              <Fact label="Trip Length" value={days.minimum ? `${days.minimum}-${days.maximum} days (ideal ${days.ideal})` : ''} />
               <Fact label="Good For" value={destination.idealFor.join(', ')} />
               <Fact label="Languages" value={destination.languages.join(', ')} />
               <Fact label="Nearest Airport" value={destination.nearestAirport} />
               <Fact label="Nearest Railway Station" value={destination.nearestRailwayStation} />
+              <Fact label="Road Connectivity" value={destination.roadConnectivity} />
             </div>
 
-            <Section title="Suggested Itinerary" show={destination.itinerary.length > 0}>
+            <Section title="Suggested Itinerary" icon={Calendar} show={destination.itinerary.length > 0}>
               <ol className="space-y-2 text-xs text-slate-300">
                 {destination.itinerary.map((day) => (
                   <li key={day} className="flex items-start gap-2.5">
@@ -206,16 +301,17 @@ export default function DestinationDetails() {
               </ol>
             </Section>
 
-            <Section title="Safety & Local Tips" show={Boolean(destination.safetyNotes || destination.localCustoms)}>
+            <Section title="Visitor Guidelines" icon={ShieldCheck}>
               <div className="space-y-2 text-xs text-slate-300">
-                {destination.safetyNotes && (
-                  <p className="flex items-start gap-2"><ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" /><span>{destination.safetyNotes}</span></p>
+                {info.visitorGuidelines && <p className="whitespace-pre-line">{info.visitorGuidelines}</p>}
+                {destination.localCustoms && (
+                  <p className="flex items-start gap-2"><Info className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" /><span>{destination.localCustoms}</span></p>
                 )}
                 {destination.specialConsiderations && (
                   <p className="flex items-start gap-2"><Info className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" /><span>{destination.specialConsiderations}</span></p>
                 )}
-                {destination.localCustoms && (
-                  <p className="flex items-start gap-2"><Info className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" /><span>{destination.localCustoms}</span></p>
+                {destination.safetyNotes && (
+                  <p className="flex items-start gap-2"><ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" /><span>{destination.safetyNotes}</span></p>
                 )}
                 <p className="flex items-start gap-2">
                   <Info className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
@@ -224,15 +320,55 @@ export default function DestinationDetails() {
               </div>
             </Section>
 
+            <Section title="Accessibility" icon={Accessibility}>
+              <div className="space-y-2 text-xs text-slate-300">
+                {destination.accessLevel && <p>Overall access (dataset): <span className="font-semibold text-white">{destination.accessLevel}</span></p>}
+                {info.accessibilityNotes ? <p className="whitespace-pre-line">{info.accessibilityNotes}</p> : <NotAvailable text="Detailed accessibility information (wheelchair access, facilities) is not available yet." />}
+              </div>
+            </Section>
+
+            <Section title="Tourist Guide Information" icon={Users}>
+              <div className="space-y-2 text-xs text-slate-300">
+                {info.guideInfo ? <p className="whitespace-pre-line">{info.guideInfo}</p> : <NotAvailable text="No local guide information yet." />}
+                <Link to={`/ai-guide?dest=${destination.id}`} className="inline-flex items-center gap-1.5 text-cyan-300 hover:text-cyan-200 underline">
+                  <Sparkles className="w-3.5 h-3.5" /> Ask the TourFlow AI Guide about {destination.name}
+                </Link>
+              </div>
+            </Section>
+
             <Section title="Must-Try Local Food" show={destination.localCuisine.length > 0}><Chips items={destination.localCuisine} /></Section>
 
-            {destination.lastDatasetUpdate && (
-              <p className="pt-4 border-t border-slate-800 text-[11px] text-slate-500">Dataset information last updated: {destination.lastDatasetUpdate}</p>
-            )}
+            <Section title="Frequently Asked Questions" icon={HelpCircle} show={destination.faqs.length > 0}>
+              <div className="space-y-2">
+                {destination.faqs.map((faq, i) => (
+                  <div key={faq.question} className="rounded-xl border border-slate-800 bg-slate-950/60">
+                    <button
+                      onClick={() => setOpenFaq(openFaq === i ? -1 : i)}
+                      aria-expanded={openFaq === i}
+                      className="w-full text-left px-4 py-3 text-sm text-white font-medium flex items-center justify-between gap-3"
+                    >
+                      <span>{faq.question}</span>
+                      <ChevronRight className={`w-4 h-4 text-cyan-400 flex-shrink-0 transition-transform ${openFaq === i ? 'rotate-90' : ''}`} />
+                    </button>
+                    {openFaq === i && (
+                      <div className="px-4 pb-3 text-xs text-slate-300">
+                        <p className="whitespace-pre-line">{faq.answer}</p>
+                        <p className="text-[10px] text-slate-500 mt-1">{faq.source === 'admin' ? 'Added by TourFlow staff' : 'From the tourism dataset'}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Section>
+
+            <p className="pt-4 border-t border-slate-800 text-[11px] text-slate-500">
+              {destination.lastDatasetUpdate && <>Dataset information last updated: {destination.lastDatasetUpdate}. </>}
+              {info.updatedAt && <>Staff information last updated: {new Date(info.updatedAt).toLocaleDateString()}.</>}
+            </p>
           </div>
         </div>
 
-        {/* Right column: crowd & queue panel */}
+        {/* Right column: crowd, queue and booking options */}
         <div className="lg:col-span-4 space-y-6">
           <div className="bg-slate-900 border border-cyan-500/30 rounded-3xl p-6 shadow-2xl backdrop-blur-xl relative overflow-hidden sticky top-24">
             <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-5">
@@ -277,6 +413,16 @@ export default function DestinationDetails() {
               </p>
             </div>
 
+            {/* Booking options */}
+            <div className="mb-5 p-4 bg-slate-950/70 rounded-2xl border border-slate-800 text-xs space-y-1.5">
+              <h4 className="font-mono uppercase text-[11px] text-slate-400 mb-1">Booking options</h4>
+              <p className="text-slate-300">Digital FIFO queue • 1 to 4 visitors per booking • free</p>
+              <p className="text-slate-300">
+                {crowd.queueOpen ? (crowd.isFull ? 'Queue is full right now.' : `${crowd.placesLeft} of ${crowd.maxQueuePeople} queue places available.`) : 'Not accepting bookings right now.'}
+              </p>
+              <p className="text-slate-500">You get a QR pass; staff check you in at the entrance in queue order.</p>
+            </div>
+
             <p className="text-[11px] font-mono text-slate-400 mb-1 flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5 text-cyan-400" />
               Last queue activity: {timeAgo(crowd.lastActivityAt)}{crowd.isStale ? ' (stale)' : ''}
@@ -288,7 +434,7 @@ export default function DestinationDetails() {
               className="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-slate-950 font-black rounded-xl text-xs font-mono uppercase tracking-wider transition-all shadow-lg shadow-cyan-950 flex items-center justify-center gap-2"
             >
               <Ticket className="w-4 h-4" />
-              <span>Join Digital Queue</span>
+              <span>{canBook ? 'Join Digital Queue' : 'View Booking Options'}</span>
             </button>
             <p className="mt-4 text-center text-[10px] font-mono text-slate-500 flex items-center justify-center gap-1">
               <ShieldCheck className="w-3 h-3 text-cyan-400" />

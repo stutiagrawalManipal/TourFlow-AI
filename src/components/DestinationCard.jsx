@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Clock, Users, ArrowUpRight, Compass } from 'lucide-react';
 import CrowdBadge from './CrowdBadge';
+import DestinationImage from './DestinationImage';
 
 /**
  * DestinationCard component
@@ -14,13 +15,13 @@ export default function DestinationCard({ destination, onQuickJoin }) {
 
   return (
     <div className="group relative bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden hover:border-cyan-500/40 hover:shadow-xl hover:shadow-cyan-950/30 transition-all duration-300 flex flex-col">
-      {/* Image Container with telemetry overlay */}
+      {/* Photo with crowd overlay */}
       <div className="relative aspect-[16/10] overflow-hidden bg-slate-950">
-        <img
-          src={destination.imageUrl}
-          alt={destination.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100"
-          loading="lazy"
+        <DestinationImage
+          image={destination.image}
+          name={destination.name}
+          id={destination.id}
+          className="group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
 

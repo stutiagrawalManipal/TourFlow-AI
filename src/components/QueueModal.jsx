@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { newRequestId } from '../services/api';
 import CrowdBadge from './CrowdBadge';
 import QRCode from './QRCode';
+import DestinationImage from './DestinationImage';
 import { passText } from './QRPass';
 
 /**
@@ -17,6 +18,7 @@ import { passText } from './QRPass';
 export default function QueueModal({ destination, isOpen, onClose }) {
   const [visitorCount, setVisitorCount] = useState(1);
   const [errorMessage, setErrorMessage] = useState('');
+  const [existingBookingId, setExistingBookingId] = useState(null);
   const [confirmedBooking, setConfirmedBooking] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [requestId, setRequestId] = useState(newRequestId);
@@ -44,6 +46,7 @@ export default function QueueModal({ destination, isOpen, onClose }) {
     if (isSubmitting) return; // ignore double clicks
     setIsSubmitting(true);
     setErrorMessage('');
+    setExistingBookingId(null);
     const result = await joinQueue(destination, visitorCount, requestId);
     setIsSubmitting(false);
 
@@ -51,6 +54,7 @@ export default function QueueModal({ destination, isOpen, onClose }) {
       setConfirmedBooking(result.booking);
     } else {
       setErrorMessage(result.error || 'Unable to join the queue.');
+      setExistingBookingId(result.existingBookingId || null);
       setRequestId(newRequestId()); // a corrected retry is a new request
     }
   };
@@ -94,7 +98,9 @@ export default function QueueModal({ destination, isOpen, onClose }) {
       <div>
         {/* Destination summary */}
         <div className="flex items-center gap-3 p-3 bg-slate-950/60 rounded-xl border border-slate-800 mb-5">
-          <img src={destination.imageUrl} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
+          <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
+            <DestinationImage image={destination.image || destination.images?.[0]} name={destination.name} id={destination.id} sizes="56px" />
+          </div>
           <div className="min-w-0">
             <h4 className="text-base font-bold text-white truncate">{destination.name}</h4>
             <p className="text-xs text-slate-400 truncate">{destination.location}</p>
@@ -119,6 +125,12 @@ export default function QueueModal({ destination, isOpen, onClose }) {
         <p className="text-[10px] font-mono text-slate-500 mb-5">
           Estimates only - based on the dataset season and the TourFlow queue, not live sensors.
         </p>
+
+        {crowd.queueOpen !== false && crowd.maxQueuePeople && (
+          <p className="text-[11px] font-mono text-slate-400 mb-4">
+            {crowd.isFull ? 'The queue is full right now.' : `${crowd.placesLeft} of ${crowd.maxQueuePeople} queue places left.`}
+          </p>
+        )}
 
         {crowd.queueOpen === false && (
           <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-300">
@@ -162,7 +174,14 @@ export default function QueueModal({ destination, isOpen, onClose }) {
         {errorMessage && (
           <div className="mt-3 p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center gap-2.5 text-rose-300 text-xs">
             <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
-            <span className="font-medium">{errorMessage}</span>
+            <span className="font-medium">
+              {errorMessage}
+              {existingBookingId && (
+                <button type="button" onClick={() => goTo('/queue')} className="ml-1 underline text-cyan-300 hover:text-cyan-200">
+                  View it in My Queue
+                </button>
+              )}
+            </span>
           </div>
         )}
 
@@ -178,7 +197,7 @@ export default function QueueModal({ destination, isOpen, onClose }) {
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={isSubmitting}
+            disabled={isSubmitting || crowd.queueOpen === false || crowd.isFull}
             className="flex-1 py-2.5 px-4 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 disabled:opacity-50 text-slate-950 font-bold rounded-xl text-sm"
           >
             {isSubmitting ? 'Booking...' : 'Confirm & Join Queue'}

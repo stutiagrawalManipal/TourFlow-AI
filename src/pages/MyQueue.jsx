@@ -23,7 +23,7 @@ export default function MyQueue() {
   }, [refreshBookings]);
 
   const selected = activeBookings.find((b) => b.bookingId === selectedId) || activeBookings[0];
-  const history = bookings.filter((b) => b.status === 'CHECKED_OUT' || b.status === 'CANCELLED');
+  const history = bookings.filter((b) => ['CHECKED_OUT', 'CANCELLED', 'NO_SHOW'].includes(b.status));
 
   const notify = (type, text) => {
     setNotification({ type, text });
@@ -166,7 +166,10 @@ export default function MyQueue() {
             {history.map((b) => (
               <li key={b.bookingId} className="px-5 py-3 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
                 <span className="text-slate-300">{b.destinationName}</span>
-                <span className="text-slate-500">{b.bookingId} • {b.numberOfPeople} ppl • {formatTime(b.createdAt)}</span>
+                <span className="text-slate-500">
+                  {b.bookingId} • {b.numberOfPeople} ppl • {formatTime(b.createdAt)}
+                  {b.endedReason && <span className="block text-[10px] text-slate-500">Reason: {b.endedReason}</span>}
+                </span>
                 <QueueStatus status={b.status} size="sm" />
               </li>
             ))}

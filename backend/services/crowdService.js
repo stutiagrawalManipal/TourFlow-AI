@@ -1,7 +1,5 @@
-import { getDb } from '../db/store.js';
-import { BOOKING_STATUS } from '../models/Booking.js';
+import { query } from '../db/pool.js';
 import { clean } from '../models/Destination.js';
-import { getSettings } from './destinationService.js';
 
 /**
  * Crowd service - first version, ESTIMATES ONLY.
@@ -82,60 +80,92 @@ function queueLevel(peopleWaiting) {
   return 'LOW';
 }
 
-// People per minute let in recently (from check-in times), or the planning rate
-export function getEntryRate(destinationId, bookings = getDb().bookings) {
-  const since = Date.now() - MEASURE_WINDOW_MINUTES * 60000;
-  const recent = bookings.filter(
-    (b) => b.destinationId === String(destinationId) && b.checkedInAt && Date.parse(b.checkedInAt) >= since
-  );
-  if (recent.length >= MIN_ENTRIES_TO_MEASURE) {
-    const people = recent.reduce((sum, b) => sum + b.numberOfPeople, 0);
-    return { perMinute: Math.max(people / MEASURE_WINDOW_MINUTES, 0.1), measured: true };
+const EMPTY_STATS = { peopleWaiting: 0, groupsWaiting: 0, peopleInside: 0, recentEntries: 0, recentPeopleEntered: 0, lastActivityAt: null };
+
+/**
+ * Queue numbers for many destinations in ONE query.
+ * Returns Map(destinationId -> stats). `client` lets callers read inside a transaction.
+ */
+export async function getQueueStats(destinationIds = null, client = null) {
+  const run = client ? client.query.bind(client) : query;
+  const params = [MEASURE_WINDOW_MINUTES];
+  let filter = '';
+  if (destinationIds) {
+    params.push(destinationIds.map(String));
+    filter = 'WHERE destination_id = ANY($2::text[])';
   }
-  return { perMinute: getSettings(destinationId).entryRatePerMinute, measured: false };
+  const { rows } = await run(
+    `SELECT destination_id,
+       COALESCE(SUM(number_of_people) FILTER (WHERE status = 'WAITING'), 0)::int AS people_waiting,
+       COUNT(*) FILTER (WHERE status = 'WAITING')::int AS groups_waiting,
+       COALESCE(SUM(number_of_people) FILTER (WHERE status = 'CHECKED_IN'), 0)::int AS people_inside,
+       COUNT(*) FILTER (WHERE checked_in_at > now() - make_interval(mins => $1))::int AS recent_entries,
+       COALESCE(SUM(number_of_people) FILTER (WHERE checked_in_at > now() - make_interval(mins => $1)), 0)::int AS recent_people,
+       MAX(GREATEST(created_at, checked_in_at, checked_out_at, cancelled_at)) AS last_activity
+     FROM bookings ${filter}
+     GROUP BY destination_id`,
+    params
+  );
+  return new Map(
+    rows.map((r) => [
+      r.destination_id,
+      {
+        peopleWaiting: r.people_waiting,
+        groupsWaiting: r.groups_waiting,
+        peopleInside: r.people_inside,
+        recentEntries: r.recent_entries,
+        recentPeopleEntered: r.recent_people,
+        lastActivityAt: r.last_activity ? new Date(r.last_activity).toISOString() : null,
+      },
+    ])
+  );
 }
 
-export function estimateWaitMinutes(peopleAhead, entryRate) {
-  return Math.ceil(peopleAhead / entryRate.perMinute);
+// People per minute let in recently (from check-ins), or the admin's planning rate
+export function entryRate(row, stats) {
+  if (stats.recentEntries >= MIN_ENTRIES_TO_MEASURE) {
+    return { perMinute: Math.max(stats.recentPeopleEntered / MEASURE_WINDOW_MINUTES, 0.1), measured: true };
+  }
+  return { perMinute: Number(row.entry_rate_per_minute) || 2, measured: false };
 }
 
-export function getCrowdInfo(record) {
-  const id = String(record.id);
-  const bookings = getDb().bookings.filter((b) => b.destinationId === id);
-  const waiting = bookings.filter((b) => b.status === BOOKING_STATUS.WAITING);
-  const inside = bookings.filter((b) => b.status === BOOKING_STATUS.CHECKED_IN);
-  const peopleWaiting = waiting.reduce((sum, b) => sum + b.numberOfPeople, 0);
-  const peopleInside = inside.reduce((sum, b) => sum + b.numberOfPeople, 0);
+export const estimateWaitMinutes = (peopleAhead, rate) => Math.ceil(peopleAhead / rate.perMinute);
 
-  const season = seasonalEstimate(record);
-  const fromQueue = queueLevel(peopleWaiting);
+// Crowd estimate for one destination row (stats from getQueueStats)
+export function getCrowdInfo(row, stats = EMPTY_STATS) {
+  const s = stats || EMPTY_STATS;
+  const season = seasonalEstimate(row.dataset || {});
+  const fromQueue = queueLevel(s.peopleWaiting);
   const crowdLevel = LEVELS[Math.max(LEVELS.indexOf(season.level), LEVELS.indexOf(fromQueue))];
-
-  const entryRate = getEntryRate(id, bookings);
-  const settings = getSettings(id);
-  const hourlyCapacity = entryRate.perMinute * 60;
-
-  // last time anything happened in this queue
-  const times = bookings.flatMap((b) => [b.createdAt, b.checkedInAt, b.checkedOutAt, b.cancelledAt]).filter(Boolean);
-  const lastActivityAt = times.length ? times.sort().at(-1) : null;
-  const isStale = !lastActivityAt || Date.now() - Date.parse(lastActivityAt) > STALE_AFTER_MINUTES * 60000;
+  const rate = entryRate(row, s);
+  const maxQueuePeople = Number(row.max_queue_people);
+  const isStale = !s.lastActivityAt || Date.now() - Date.parse(s.lastActivityAt) > STALE_AFTER_MINUTES * 60000;
 
   return {
     crowdLevel,
     seasonalLevel: season.level,
     season: season.season,
-    queueLength: waiting.length,
-    peopleWaiting,
-    peopleInside,
-    estimatedWaitMinutes: estimateWaitMinutes(peopleWaiting, entryRate),
-    queueLoadPercent: Math.min(100, Math.round((peopleWaiting / hourlyCapacity) * 100)),
-    entryRatePerMinute: Math.round(entryRate.perMinute * 10) / 10,
-    entryRateMeasured: entryRate.measured,
-    queueOpen: settings.queueOpen,
-    notice: settings.notice,
-    lastActivityAt,
+    queueLength: s.groupsWaiting,
+    peopleWaiting: s.peopleWaiting,
+    peopleInside: s.peopleInside,
+    estimatedWaitMinutes: estimateWaitMinutes(s.peopleWaiting, rate),
+    queueLoadPercent: Math.min(100, Math.round((s.peopleWaiting / (rate.perMinute * 60)) * 100)),
+    entryRatePerMinute: Math.round(rate.perMinute * 10) / 10,
+    entryRateMeasured: rate.measured,
+    queueOpen: row.queue_open,
+    maxQueuePeople,
+    placesLeft: Math.max(0, maxQueuePeople - s.peopleWaiting),
+    isFull: s.peopleWaiting >= maxQueuePeople,
+    notice: row.notice,
+    lastActivityAt: s.lastActivityAt,
     isStale,
     calculatedAt: new Date().toISOString(),
     dataSource: 'Estimate: seasonal data from the tourism dataset + TourFlow queue bookings. No live sensors.',
   };
+}
+
+// Convenience: crowd info for one destination
+export async function getCrowdInfoFor(row) {
+  const stats = await getQueueStats([row.id]);
+  return getCrowdInfo(row, stats.get(String(row.id)));
 }

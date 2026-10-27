@@ -6,8 +6,9 @@ import React from 'react';
 const STATUS = {
   WAITING: { bg: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30', dot: 'bg-cyan-400 animate-pulse', label: 'IN QUEUE' },
   CHECKED_IN: { bg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30', dot: 'bg-emerald-400', label: 'CHECKED IN' },
-  CHECKED_OUT: { bg: 'bg-slate-800 text-slate-300 border-slate-700', dot: 'bg-slate-400', label: 'CHECKED OUT' },
+  CHECKED_OUT: { bg: 'bg-slate-800 text-slate-300 border-slate-700', dot: 'bg-slate-400', label: 'COMPLETED' },
   CANCELLED: { bg: 'bg-rose-500/10 text-rose-300 border-rose-500/30', dot: 'bg-rose-400', label: 'CANCELLED' },
+  NO_SHOW: { bg: 'bg-amber-500/10 text-amber-300 border-amber-500/30', dot: 'bg-amber-400', label: 'NO-SHOW' },
 };
 
 export default function QueueStatus({ status = 'WAITING', size = 'md' }) {

@@ -14,12 +14,13 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { fetchDestinations, fetchGuideQuestions, askGuide } from '../services/api';
+import DestinationImage from '../components/DestinationImage';
 
 function botMessage(text, source) {
   return { id: Date.now() + Math.random(), sender: 'ai', text, source, timestamp: 'Just now' };
 }
 
-const SOURCE_LABELS = { dataset: 'From the tourism dataset', estimate: 'Estimate (no live sensors)', none: 'Not in the dataset' };
+const SOURCE_LABELS = { dataset: 'From the tourism dataset', tourflow: 'From TourFlow staff information', estimate: 'Estimate (no live sensors)', none: 'Not in the dataset' };
 
 export default function AIGuide() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -157,11 +158,7 @@ export default function AIGuide() {
             {/* Destination Snapshot */}
             <div className="mt-4 pt-4 border-t border-slate-800 space-y-3">
               <div className="relative aspect-video rounded-xl overflow-hidden bg-slate-950">
-                <img
-                  src={selectedDestination.imageUrl}
-                  alt={selectedDestination.name}
-                  className="w-full h-full object-cover"
-                />
+                <DestinationImage image={selectedDestination.image} name={selectedDestination.name} id={selectedDestination.id} sizes="400px" />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
                 <div className="absolute bottom-2 left-2 right-2 text-[10px] font-mono text-cyan-300">
                   {selectedDestination.coordinates}
