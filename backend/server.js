@@ -27,6 +27,7 @@ if (config.trustProxy) {
 
 // Allow the actual Vercel production domain and the previous preview domain.
 const allowedOrigins = [
+  'https://tourflow-ai-frontend.onrender.com',
   'https://tour-flow-ai.vercel.app',
   'https://tour-flow-5cfqj0w00-stutis-projects-0e92c8c2.vercel.app',
 ];
