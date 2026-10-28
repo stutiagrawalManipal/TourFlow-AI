@@ -20,7 +20,13 @@ export function readCookie(req, name) {
 }
 
 function cookieAttributes(maxAgeSeconds) {
-  return ['Path=/', 'HttpOnly', 'SameSite=Lax', `Max-Age=${maxAgeSeconds}`, ...(config.cookieSecure ? ['Secure'] : [])].join('; ');
+  return [
+    'Path=/',
+    'HttpOnly',
+    'SameSite=None',
+    'Secure',
+    `Max-Age=${maxAgeSeconds}`,
+  ].join('; ');
 }
 
 export function setSessionCookie(res, token, expiresAt) {
