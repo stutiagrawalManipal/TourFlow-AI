@@ -40,8 +40,22 @@ export function clearSessionCookie(res) {
 
 async function resolveUser(req) {
   const token = readCookie(req, SESSION_COOKIE);
+
+  console.log('[AUTH DEBUG]', {
+    path: req.originalUrl,
+    cookieHeaderPresent: Boolean(req.headers.cookie),
+    sessionCookiePresent: Boolean(token),
+    sessionTokenLength: token?.length ?? 0,
+  });
+
   req.token = token;
   req.user = token ? await getUserForToken(token) : null;
+
+  console.log('[AUTH DEBUG] Session validation:', {
+    path: req.originalUrl,
+    authenticated: Boolean(req.user),
+    role: req.user?.role ?? null,
+  });
 }
 
 export function requireAuth(req, res, next) {
